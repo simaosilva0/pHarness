@@ -46,6 +46,18 @@ types:
 
 The examples here use these words and the default styles.
 
+Each section ends with the rules the tool checks, one per row: when an entry
+passes, an example that passes and one that does not, and what happens when it
+is broken. An `error` means the project is wrong; `listed` means it is accepted
+but printed, so someone looks at it. The examples use the default styles; under
+another style the same rules hold with its separator and case. Rules about
+meaning, such as a connector named by what it connects to, have no row: only a
+person can check them.
+
+| rule | passes when | ok | wrong | broken |
+|---|---|---|---|---|
+| `conductor-one-end` | a conductor that is not a `shield` has at least two pins, or one pin whose `to` is a device. A screen is usually tied down at one end only | `APPS1` `analog` with `to: APPS1`; `PEDAL_BOX` `shield` on one pin | `CAN_BAT` `can:L` on one pin, no `to` | listed |
+
 ## Styles
 
 Every kind of name is written in one style, set under `style`. Left out, a kind
@@ -82,6 +94,13 @@ nets and follow `net`. The words a net is built from follow its case too: the
 Not styled: pins, written exactly as printed; types, already a closed list; the
 car's name.
 
+| rule | passes when | ok | wrong | broken |
+|---|---|---|---|---|
+| `style-kind` | every key under `style` is `net`, `box`, `connector`, `device` or `board` | `box: title` | `wire: snake` | error |
+| `style-name` | every style is one of the seven above | `net: kebab` | `net: lower` | error |
+| `style-net` | the `net` style is `upper_snake`, `snake`, `upper_kebab` or `kebab` | `net: snake` | `net: pascal` | error |
+| `net-words-case` | every side, label and qualifier is in the net's case; digits always pass | `LEFT`, `5V`, `8` | `Left`, `5v` | error |
+
 ## Nets
 
 A net name starts with a letter and is in the `net` style. It is built from
@@ -112,6 +131,16 @@ Not allowed:
 - what the type already says: a net never ends in a label or a qualifier other
   than an index (`APPS1_5V`, `APPS1_SIG`, `PDU_GND`, `CAN_E_H` are `APPS1`, `PDU`,
   `CAN_E`); `SOL_1` is fine, `1` is its index
+
+The rules apply to every net: on pins, and the names of buses, links and chains.
+
+| rule | passes when | ok | wrong | broken |
+|---|---|---|---|---|
+| `net-style` | the net is in the `net` style | `FL_SUSPOT` | `fl_suspot`, `24V(1)`, `LVMS_>BSPD` | error |
+| `net-letter` | it starts with a letter | `APPS1` | `24V` | error |
+| `net-side-first` | a side is only ever the first word | `LEFT_BUZZER` | `BUZZER_LEFT`, `FL_LEFT_PUMP` | error |
+| `net-thing` | at least one word is neither the leading side nor the trailing index | `LEFT_PUMP`, `SOL_1` | `LEFT`, `FL_1` | error |
+| `net-no-label` | the last word is not a label, a qualifier or a chain `out`, unless it is only digits (then it is an index) | `SOL_1`, `DCDC_1` | `APPS1_SIG`, `APPS1_5V`, `CAN_E_H`, `SDC_D5` | error |
 
 ## Types
 
@@ -152,6 +181,16 @@ position nothing uses. `unfitted` is a position that is wired but has nothing on
 the far end, such as a part that was dropped; a `note` on the pin says what it
 was for.
 
+| rule | passes when | ok | wrong | broken |
+|---|---|---|---|---|
+| `type-kinds` | every kind under `types` is one of the ten above | `serial` | `lin` | error |
+| `kind-form` | a kind has a `label` or `qualifiers`, not both; `chain` and `no_net` have neither | `ground: {types: [ground], label: GND}` | `ground: {types: [ground], label: GND, qualifiers: [A]}` | error |
+| `type-word-case` | every type word is lower case letters and digits | `sent` | `SENT`, `can-fd` | error |
+| `type-word-twice` | a word is in two kinds only when exactly one of them has qualifiers | `analog` in `signal` and `pair` | `power` in `supply` and `pair` | error |
+| `type-reserved` | `hv` is in `pair`; `spare` and `unfitted` are in `no_net` | | `spare` under `signal` | error |
+| `pin-type` | a pin's type is a word of a kind with a `label` or of `no_net`, alone; or a word of a kind with `qualifiers` and one of them, as `word:qualifier`. Chain types are under Chains | `analog`, `analog:P`, `power:24V` | `power`, `power:48V`, `ground:A`, `Analog` | error |
+| `unfitted-note` | an `unfitted` pin has a `note` | `{pin: '7', type: unfitted, note: TITS}` | `{pin: '7', type: unfitted}` | error |
+
 ## Labels
 
 Drawings, wire lists and programs need one name per wire. The tool builds it as
@@ -169,12 +208,22 @@ by the net style's separator:
 
 The labels are never written in the harness files.
 
+| rule | passes when | ok | wrong | broken |
+|---|---|---|---|---|
+| `label-unique` | no two conductors get the same wire label | `APPS1` `analog` and `APPS1` `ground` | `X` `analog` and `X` `digital`, both `X_SIG` | error |
+
 ## CAN
 
 A CAN net is exactly `CAN_<BUS>`, a bus listed in `car.yaml`, and its pins are
 `can:H` or `can:L`. Nothing else may start with `CAN_`, so the supply of a CAN
 board is `CAN2SPI`, not `CAN_2SPI`. A CAN pin on a connector that is not on any
 bus is `spare`.
+
+| rule | passes when | ok | wrong | broken |
+|---|---|---|---|---|
+| `can-bus-name` | every bus in `car.yaml` is `CAN` and at least one more word | `CAN_E` | `CAN`, `E` | error |
+| `can-net` | a net whose first word is `CAN` is a bus | `CAN_E` | `CAN_2SPI` | error |
+| `can-type` | a pin on a bus is `can:H` or `can:L`, and `can` types are only on buses | `CAN_E` `can:H` | `CAN_E` `analog`, `CAN2SPI` `can:H` | error |
 
 ## Ethernet
 
@@ -183,6 +232,12 @@ conductor: with the RJ45 pin numbers as qualifiers, the pin of the RJ45 it maps
 to (`ETH_RPI` with `ethernet:3`, not `ETHERNET_RPI_(3)`). A single pair link
 would use `[P, N]`. `<LINK>` names the link, not the box it starts from. Nothing
 else starts with `ETH_`: the supply of a switch is named after the switch.
+
+| rule | passes when | ok | wrong | broken |
+|---|---|---|---|---|
+| `eth-link-name` | every link in `car.yaml` is `ETH` and at least one more word | `ETH_RPI` | `ETH`, `RPI` | error |
+| `eth-net` | a net whose first word is `ETH` is a link | `ETH_RPI` | `ETH_SWITCH` | error |
+| `eth-type` | a pin on a link is `ethernet:<qualifier>`, and `ethernet` types are only on links | `ETH_RPI` `ethernet:3` | `ETH_RPI` `analog`, `ETHERNET_SWITCH` `ethernet:3` | error |
 
 ## Chains
 
@@ -211,6 +266,17 @@ What feeds the first node is not part of the chain: it is a supply (`LVS`,
 `power:24V`). A box that senses a point on a chain carries that point's net and
 type. A sense line named by its slot on a board (`DATA_28`) is not a name.
 
+| rule | passes when | ok | wrong | broken |
+|---|---|---|---|---|
+| `chain-node` | a node with a `box` names a box; a node without one is a device | `{node: LVMS, out: D0}`, `{node: RES, out: D2, box: RES}` | `{node: ACU, out: D3, box: ACU}` with no box `ACU` | error |
+| `chain-out-unique` | every `out` appears once in its chain | `D0`, `D1`, `D2` | two nodes with `out: D5` | error |
+| `chain-type` | a pin on a chain is `chain:<out>` with an `out` of that chain, and `chain` types are only on chains | `SDC` `chain:D5` | `SDC` `power:24V`, `SDC` `chain:D99`, `LVS` `chain:D0` | error |
+| `chain-out-used` | every `out` is on at least one pin, unless its node and the next node are in the same box | `D5` on Accumulator Data 12; `D6` on no pin, IMD and AMS both in the Accumulator | `D3` on no pin | listed |
+
+Whether the loop really runs from each node to the next is checked once cables
+exist (step 9): a stretch from one device straight to another, such as LVMS to
+ASMS, is in no box file, only the boxes' taps on it are.
+
 ## Boxes, connectors, devices, boards
 
 - **Box**: in the `box` style. A box is never named like a board inside it,
@@ -222,3 +288,11 @@ type. A sense line named by its slot on a board (`DATA_28`) is not a name.
 - **Device**: in the `device` style: `Sus Pot FL`, `Brake Light`.
 - **Pin**: exactly as printed on the connector, case matters (`a` and `A` are two
   pins on a Deutsch AS).
+
+| rule | passes when | ok | wrong | broken |
+|---|---|---|---|---|
+| `box-style` | the box is in the `box` style | `Front Box`, `HW FL Box` | `Front box`, `front_box` | error |
+| `connector-style` | the connector is in the `connector` style | `Rear Supply`, `CAN Analog` | `rear supply`, `ASL006-05SA (yellow)` | error |
+| `device-style` | the device is in the `device` style | `Sus Pot FL`, `Cylinder Detection 0` | `sus pot FL`, `Sus_Pot_FL` | error |
+| `board-style` | the board is in the `board` style | `te`, `suspot-front` | `TE`, `suspot_front` | error |
+| `box-not-board` | the box is not named like a board in it, ignoring case and separators | `PDU Box` holding `pdu` | `PDU` holding `pdu` | error |
