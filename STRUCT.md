@@ -57,7 +57,7 @@ chains:
 |---|---|---|
 | `car` | required | the car's name |
 | `devices` | optional | every part that is not a box but has pins wired to it: sensors, switches, lamps, motors. Keyed by name (device rule in `CONFIG.md`), each with an optional `note` |
-| `buses` | optional | CAN buses, keyed by name (`CAN_<BUS>`). `bitrate`, its `ends` (the boxes and devices on it), `internal: true` when it never leaves its box |
+| `buses` | optional | CAN buses, keyed by name (`CAN_<BUS>`). `bitrate`, and `data_bitrate` for CAN FD, its `ends` (the boxes and devices on it), `internal: true` when it never leaves its box |
 | `links` | optional | Ethernet links, keyed by name (`ETH_<LINK>`), with their `ends` (boxes or devices) |
 | `chains` | optional | series loops in the order current flows (`CONFIG.md`). Each node has a `node` name, an `out` label and, when the node is inside a box, that `box`; a node outside every box is a device |
 
@@ -66,7 +66,7 @@ The boxes of the car are the files in `boxes/`; they are not listed again.
 | rule | passes when | ok | wrong | broken |
 |---|---|---|---|---|
 | `car-name` | `car` is there | `car: FST 11` | no `car` | error |
-| `bus-fields` | every bus has `bitrate` and `ends`, every link has `ends`, `internal` is only ever `true` | `{bitrate: 1000000, ends: [AS, RES]}` | `{ends: [AS, RES]}` | error |
+| `bus-fields` | every bus has `bitrate` and `ends`, every link has `ends`, `data_bitrate` is only on a CAN bus, `internal` is only ever `true` | `{bitrate: 1000000, ends: [AS, RES]}` | `{ends: [AS, RES]}` | error |
 | `chain-fields` | every chain node has `node` and `out` | `{node: RES, out: D2, box: RES}` | `{node: RES, box: RES}` | error |
 | `ends-known` | every end of a bus or link is a box or a device | `ends: [Front Box, STA]` | `ends: [Front box]` | error |
 | `ends-match` | the ends of a bus or link are exactly the boxes with a pin on it and the devices a pin on it goes `to`. An `internal` bus never reaches a connector, so it is not checked | `CAN_BAT` ends `[Accumulator, Front Box]`, both with `CAN_BAT` pins | `SW` in the ends of `CAN_S` with no `CAN_S` pin in `SW` | error |

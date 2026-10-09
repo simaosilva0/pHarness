@@ -36,6 +36,7 @@ types:
   ground:   {types: [ground], label: GND}
   signal:   {types: [analog, digital, pwm, freq], label: SIG}
   pair:     {types: [analog, digital, hv], qualifiers: [P, N]}
+  phase:    {types: [hv], qualifiers: [U, V, W]}
   can:      {types: [can], qualifiers: [H, L]}
   serial:   {types: [serial], qualifiers: [TX, RX]}
   shield:   {types: [shield], label: SHIELD}
@@ -165,6 +166,7 @@ A word may be in two kinds when one has qualifiers and the other does not:
 | `ground` | return | `LEFT_PUMP`, `ground` |
 | `signal` | a single analog or digital signal, every one of them | `FL_SUSPOT`, `analog` |
 | `pair` | the two halves of a differential pair, or the high voltage | `FR_ENCODER_DATA`, `digital:P`; `HV`, `hv:N` |
+| `phase` | the phases of a motor or another polyphase load | `FL_MOTOR`, `hv:U` |
 | `can` | CAN high and low, only on a bus (below) | `CAN_E`, `can:H` |
 | `serial` | serial, as seen from the board that owns the port; the far end keeps the same type | `STA`, `serial:TX` |
 | `shield` | cable screen, on the net of the thing it screens, or of the cable when it carries several things. A screen that belongs to neither has no net | `APPS1`, `shield` |
@@ -183,11 +185,11 @@ was for.
 
 | rule | passes when | ok | wrong | broken |
 |---|---|---|---|---|
-| `type-kinds` | every kind under `types` is one of the ten above | `serial` | `lin` | error |
+| `type-kinds` | every kind under `types` is one of the eleven above | `serial` | `lin` | error |
 | `kind-form` | a kind has a `label` or `qualifiers`, not both; `chain` and `no_net` have neither | `ground: {types: [ground], label: GND}` | `ground: {types: [ground], label: GND, qualifiers: [A]}` | error |
 | `type-word-case` | every type word is lower case letters and digits | `sent` | `SENT`, `can-fd` | error |
-| `type-word-twice` | a word is in two kinds only when exactly one of them has qualifiers | `analog` in `signal` and `pair` | `power` in `supply` and `pair` | error |
-| `type-reserved` | `hv` is in `pair`; `spare` and `unfitted` are in `no_net` | | `spare` under `signal` | error |
+| `type-word-twice` | a word is in two kinds only when exactly one of them has qualifiers, or it is `hv` in `pair` and `phase` | `analog` in `signal` and `pair` | `power` in `supply` and `pair` | error |
+| `type-reserved` | `hv` is in `pair`, and may also be in `phase`; `spare` and `unfitted` are in `no_net` | | `spare` under `signal` | error |
 | `pin-type` | a pin's type is a word of a kind with a `label` or of `no_net`, alone; or a word of a kind with `qualifiers` and one of them, as `word:qualifier`. Chain types are under Chains | `analog`, `analog:P`, `power:24V` | `power`, `power:48V`, `ground:A`, `Analog` | error |
 | `unfitted-note` | an `unfitted` pin has a `note` | `{pin: '7', type: unfitted, note: TITS}` | `{pin: '7', type: unfitted}` | error |
 
