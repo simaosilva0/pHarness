@@ -164,7 +164,7 @@ A word may be in two kinds when one has qualifiers and the other does not:
 |---|---|---|
 | `supply` | supply at that voltage | `LEFT_PUMP`, `power:24V` |
 | `ground` | return | `LEFT_PUMP`, `ground` |
-| `signal` | a single analog or digital signal, every one of them | `FL_SUSPOT`, `analog` |
+| `signal` | a single analog or digital signal, every one of them. A net has one signal: a fan's speed command and tachometer are two nets, `LEFT_FAN` `pwm` and `LEFT_FAN_TACH` `freq`, since both would be `LEFT_FAN_SIG` | `FL_SUSPOT`, `analog` |
 | `pair` | the two halves of a differential pair, or the high voltage | `FR_ENCODER_DATA`, `digital:P`; `HV`, `hv:N` |
 | `phase` | the phases of a motor or another polyphase load | `FL_MOTOR`, `hv:U` |
 | `can` | CAN high and low, only on a bus (below) | `CAN_E`, `can:H` |
@@ -212,7 +212,7 @@ The labels are never written in the harness files.
 
 | rule | passes when | ok | wrong | broken |
 |---|---|---|---|---|
-| `label-unique` | no two conductors get the same wire label | `APPS1` `analog` and `APPS1` `ground` | `X` `analog` and `X` `digital`, both `X_SIG` | error |
+| `label-unique` | no two conductors get the same wire label | `APPS1` `analog` and `APPS1` `ground` | `LEFT_FAN` `pwm` and `LEFT_FAN` `freq`, both `LEFT_FAN_SIG` | error |
 
 ## CAN
 
