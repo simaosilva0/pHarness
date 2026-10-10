@@ -125,12 +125,15 @@ Pin:
 | `note` | optional | free text; on an `unfitted` pin, what it was for |
 
 The tool writes one pin per line, the fields always in the order above and
-nothing lined up, so a hand edit never forces realigning its neighbours:
+nothing lined up, so a hand edit never forces realigning its neighbours. A
+value YAML would read differently is quoted: a pin of digits (`'1'`), a note
+with a comma or a colon:
 
 ```yaml
       - {pin: '1', net: PEDAL_BOX, type: shield}
       - {pin: '2', net: TE, type: power:24V, to: Front Box}
       - {pin: '11', type: spare}
+      - {pin: '12', type: unfitted, note: 'TITS, dropped before fitting'}
 ```
 
 Inside a box, pins with the same net and type are joined: a supply that comes in
