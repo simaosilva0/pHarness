@@ -7,7 +7,7 @@ follow `CONFIG.md`.
 
 ```
 <project>/
-  config.yaml          styles, sides, types and rule levels (CONFIG.md)
+  config.yaml          styles, sides, types, rule levels, accepted entries (CONFIG.md)
   car.yaml             the car: devices, buses, links, chains
   boxes/<box>.yaml     one file per box: its connectors and their pins
   cables/<cable>.yaml  one file per cable: its wires (optional)

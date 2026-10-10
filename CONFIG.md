@@ -357,3 +357,42 @@ is the same for every project.
 | `rule-known` | every key under `rules` is a rule in these tables | `pin-order: off` | `pin-orders: off` | error | |
 | `rule-level` | every level is `error`, `warn` or `off` | `warn` | `pass`, `listed` | error | |
 | `rule-fixed` | only adjustable rules are listed | `ends-match: warn` | `net-style: warn` | error | |
+
+### Accepting one entry
+
+An entry that breaks an adjustable rule, and is known and fine, is accepted
+under `accept` with the reason, so the rule stays on for everything else:
+
+```yaml
+accept:
+  to-reaches:
+    Accumulator.Data.11: the Front Box D7 pin is not known yet
+  chain-out-used:
+    SDC chain:D3: ACU to RESB not wired yet
+  bus-internal:
+    CAN_X1: spare bus, kept for later
+```
+
+The report prints every problem of an adjustable rule with its entry, as it is
+written here, so accepting it is a copy. An accepted entry is not reported. The list stays in one place, away from the
+harness files, and the tool keeps it honest: an entry that no longer exists (a
+pin was renamed) is an error, and one that no longer breaks its rule is
+printed, so it can be removed. While its rule is `off`, or another mistake keeps
+the rule from judging it (a misspelled end, a box file with no `box`), an entry
+is not called stale.
+
+| rule | entry | example |
+|---|---|---|
+| `to-reaches`, `at-pass`, `unfitted-note`, `pin-order` | a pin, `<box>.<connector>.<pin>` | `Accumulator.Data.11` |
+| `conductor-one-end` | a conductor, `<net> <type>` | `CAN_BAT can:L` |
+| `chain-out-used` | a chain out, `<chain> chain:<out>` | `SDC chain:D3` |
+| `ends-match`, `bus-internal` | a bus or link | `CAN_X1` |
+| `device-used` | a device | `RPI Fan` |
+
+`rule-known` and `rule-fixed` hold for the rules under `accept` too.
+
+| rule | passes when | ok | wrong | level | adjustable |
+|---|---|---|---|---|---|
+| `accept-reason` | every accepted entry has a reason | `CAN_X1: spare bus, kept for later` | `CAN_X1: ''` | error | |
+| `accept-known` | every accepted entry exists | `Accumulator.Data.11` | `Accumulator.Data.99`, `Accumulator / Data / 11` | error | |
+| `accept-used` | every accepted entry still breaks its rule | | `Pedal Box.In.1` under `to-reaches`, which it reaches | warn | |
