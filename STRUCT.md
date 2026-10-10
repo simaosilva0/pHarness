@@ -22,9 +22,10 @@ The rules are in tables like those in `CONFIG.md`, with the same columns.
 
 | rule | passes when | ok | wrong | level | adjustable |
 |---|---|---|---|---|---|
-| `yaml` | the file is valid YAML | | a tab used for indenting | error | |
+| `yaml` | `config.yaml` and `car.yaml` are there, and every file is valid YAML and a mapping of fields | | a tab used for indenting, a box file that is a list | error | |
 | `key-once` | no key is written twice in the same mapping | | connector `APPS1` twice in one box | error | |
 | `field-known` | every field is one listed here | `note` | `notes` | error | |
+| `field-shape` | every field holds what its table says: a mapping, a list, text or a number | `sides: [LEFT, RIGHT]` | `sides: LEFT` | error | |
 
 A project can start with boxes only. Without cables, pins are joined by net and
 type: every pin with the same net and the same type is one conductor. Cables
