@@ -89,8 +89,8 @@ A word of only digits fits every style (`Cylinder Detection 0`, `SOL_1`).
 A net needs a separator to tell its side and index from the rest, so it is
 `upper_snake`, `snake`, `upper_kebab` or `kebab`. Buses, links and chains are
 nets and follow `net`. The words a net is built from follow its case too: the
-`sides`, and the labels and qualifiers in `types`, which end up in wire labels
-(`snake` nets need `left`, `gnd`, `h`, `3v3`).
+`sides`, the labels and qualifiers in `types` and the `out`s of chains, which
+end up in wire labels (`snake` nets need `left`, `gnd`, `h`, `3v3`, `d5`).
 
 Not styled: pins, written exactly as printed; types, already a closed list; the
 car's name.
@@ -100,7 +100,7 @@ car's name.
 | `style-kind` | every key under `style` is `net`, `box`, `connector`, `device` or `board` | `box: title` | `wire: snake` | error |
 | `style-name` | every style is one of the seven above | `net: kebab` | `net: lower` | error |
 | `style-net` | the `net` style is `upper_snake`, `snake`, `upper_kebab` or `kebab` | `net: snake` | `net: pascal` | error |
-| `net-words-case` | every side, label and qualifier is in the net's case; digits always pass | `LEFT`, `5V`, `8` | `Left`, `5v` | error |
+| `net-words-case` | every side, label, qualifier and chain `out` is one word in the net's case: letters and digits, no separator; digits always pass | `LEFT`, `5V`, `8`, `D5` | `Left`, `5v`, `d5`, `D_5` | error |
 
 ## Nets
 
