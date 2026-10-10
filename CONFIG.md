@@ -169,7 +169,11 @@ A word may be in two kinds when one has qualifiers and the other does not:
 | `signal` | a single analog or digital signal, every one of them. A net has one signal: a fan's speed command and tachometer are two nets, `LEFT_FAN` `pwm` and `LEFT_FAN_TACH` `freq`, since both would be `LEFT_FAN_SIG` | `FL_SUSPOT`, `analog` |
 | `pair` | the two halves of a differential pair, or the high voltage | `FR_ENCODER_DATA`, `digital:P`; `HV`, `hv:N` |
 | `phase` | the phases of a motor or another polyphase load | `FL_MOTOR`, `hv:U` |
-| `can` | CAN high and low, only on a bus (below) | `CAN_E`, `can:H` |
+| `can` | CAN high and low, only on a CAN bus (Buses) | `CAN_E`, `can:H` |
+| `lin` | the one LIN wire, only on a LIN bus | `LIN_WHEEL`, `lin` |
+| `rs485` | RS-485 A and B, only on an RS-485 bus | `RS485_RIDE`, `rs485:A` |
+| `i2c` | I2C data and clock, only on an I2C bus | `I2C_CABIN`, `i2c:SDA` |
+| `spi` | SPI clock, data and each device's chip select, only on an SPI bus | `SPI_STRAIN`, `spi:CS0` |
 | `serial` | serial, as seen from the board that owns the port; the far end keeps the same type | `STA`, `serial:TX` |
 | `shield` | cable screen, on the net of the thing it screens, or of the cable when it carries several things. A screen that belongs to neither has no net | `APPS1`, `shield` |
 | `ethernet` | one conductor of an Ethernet link, only on a link (below) | `ETH_RPI`, `ethernet:3` |
@@ -187,7 +191,7 @@ was for.
 
 | rule | passes when | ok | wrong | level | adjustable |
 |---|---|---|---|---|---|
-| `type-kinds` | every kind under `types` is one of the eleven above | `serial` | `lin` | error | |
+| `type-kinds` | every kind under `types` is one of the fifteen above | `serial` | `usb` | error | |
 | `kind-form` | a kind has a `label` or `qualifiers`, not both; `chain` and `no_net` have neither | `ground: {types: [ground], label: GND}` | `ground: {types: [ground], label: GND, qualifiers: [A]}` | error | |
 | `type-word-case` | every type word is lower case letters and digits | `sent` | `SENT`, `can-fd` | error | |
 | `type-word-twice` | a word is in two kinds only when exactly one of them has qualifiers, or it is `hv` in `pair` and `phase` | `analog` in `signal` and `pair` | `power` in `supply` and `pair` | error | |
@@ -216,25 +220,44 @@ The labels are never written in the harness files.
 |---|---|---|---|---|---|
 | `label-unique` | no two conductors get the same wire label | `APPS1` `analog` and `APPS1` `ground` | `LEFT_FAN` `pwm` and `LEFT_FAN` `freq`, both `LEFT_FAN_SIG` | error | |
 
-## CAN
+## Buses
 
-A CAN net is exactly `CAN_<BUS>`, a bus listed in `car.yaml`, and its pins are
-`can:H` or `can:L`. Nothing else may start with `CAN_`, so the supply of a CAN
-board is `CAN2SPI`, not `CAN_2SPI`. A CAN pin on a connector that is not on any
+A bus is a net that several boxes and devices share. Five kinds are buses: `can`,
+`lin`, `rs485`, `i2c` and `spi`. A bus net is exactly `<KIND>_<BUS>`, the kind's
+name first, in the net's case: `CAN_E`, `LIN_WHEEL`, `RS485_RIDE`, `I2C_CABIN`,
+`SPI_STRAIN`. It is listed in `car.yaml`, and its pins have types of its kind
+only. Nothing else may start with a bus kind's name, so the supply of a CAN
+board is `CAN2SPI`, not `CAN_2SPI`. A bus pin on a connector that is not on any
 bus is `spare`.
+
+The qualifiers are the project's, in its `types`:
+
+```yaml
+types:
+  can:   {types: [can], qualifiers: [H, L]}
+  lin:   {types: [lin], label: DATA}
+  rs485: {types: [rs485], qualifiers: [A, B]}
+  i2c:   {types: [i2c], qualifiers: [SDA, SCL]}
+  spi:   {types: [spi], qualifiers: [SCK, MOSI, MISO, CS0, CS1]}
+```
+
+LIN has one wire, so its kind has a label (`LIN_WHEEL_DATA`). On SPI the clock
+and data are shared, and every device has its own chip select: `SPI_STRAIN`
+`spi:CS0` goes to one device, `spi:CS1` to the next. A bus device's supply and
+ground are on its own net, as on any device.
 
 | rule | passes when | ok | wrong | level | adjustable |
 |---|---|---|---|---|---|
-| `can-bus-name` | every bus in `car.yaml` is `CAN` and at least one more word | `CAN_E` | `CAN`, `E` | error | |
-| `can-net` | a net whose first word is `CAN` is a bus | `CAN_E` | `CAN_2SPI` | error | |
-| `can-type` | a pin on a bus is `can:H` or `can:L`, and `can` types are only on buses | `CAN_E` `can:H` | `CAN_E` `analog`, `CAN2SPI` `can:H` | error | |
+| `bus-name` | every bus in `car.yaml` is a bus kind's name and at least one more word | `CAN_E`, `I2C_CABIN` | `CAN`, `E`, `UART_GPS` | error | |
+| `bus-net` | a net whose first word is a bus kind's name is a bus | `CAN_E` | `CAN_2SPI` | error | |
+| `bus-type` | a pin on a bus has a type of the bus's kind, and those types are only on buses of that kind | `CAN_E` `can:H` | `CAN_E` `analog`, `CAN_E` `lin`, `CAN2SPI` `can:H` | error | |
 
 ## Ethernet
 
 An Ethernet net is exactly `ETH_<LINK>`, and the qualifier of each pin is the
 conductor: with the RJ45 pin numbers as qualifiers, the pin of the RJ45 it maps
 to (`ETH_RPI` with `ethernet:3`, not `ETHERNET_RPI_(3)`). A single pair link
-would use `[P, N]`. `<LINK>` names the link, not the box it starts from. Nothing
+would use `[P, N]`. Like a bus, a link is listed in `car.yaml`. `<LINK>` names the link, not the box it starts from. Nothing
 else starts with `ETH_`: the supply of a switch is named after the switch.
 
 | rule | passes when | ok | wrong | level | adjustable |
