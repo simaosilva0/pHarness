@@ -341,6 +341,7 @@ ASMS, is in no box file, only the boxes' taps on it are.
 | `device-style` | the device is in the `device` style, and so is the name of a chain node inside a box, named after the part it is | `Sus Pot FL`, `Cylinder Detection 0` | `sus pot FL`, `Sus_Pot_FL` | error | |
 | `board-style` | the board is in the `board` style | `te`, `suspot-front` | `TE`, `suspot_front` | error | |
 | `box-not-board` | the box is not named like a board in it, ignoring case and separators | `PDU Box` holding `pdu` | `PDU` holding `pdu` | error | |
+| `box-not-device` | no name is both a box and a device | box `NPC`, device `TSAL` | `RES` in `boxes/` and under `devices` | error | |
 
 ## Rule levels
 

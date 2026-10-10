@@ -164,8 +164,11 @@ on one connector and leaves on another is one conductor without a wire.
 | `connector-pins` | every connector has `pins` | | a connector with only a `part` | error | |
 | `pin-fields` | every pin has `pin` and `type` | `{pin: '4', type: spare}` | `{pin: '4'}` | error | |
 | `pin-string` | `pin` is a string | `'1'`, `a` | `1` | error | |
+| `pin-once` | no pin is written twice in one connector (case matters: `a` and `A` are two pins) | `'1'`, `'2'` | `'1'` twice in `APPS1` | error | |
 | `pin-net` | a pin has a `net` unless its type is `spare` or `unfitted`, which never have one | `{pin: '4', type: spare}` | `{pin: '4', net: TE, type: spare}`, `{pin: '3', type: analog}` | error | |
 | `to-known` | `to` is a box or a device | `to: Front Box`, `to: APPS1` | `to: Front box` | error | |
+| `to-not-own-box` | `to` is not the pin's own box | `to: Front Box` in `Pedal Box` | `to: Pedal Box` in `Pedal Box` | error | |
+| `spare-no-to` | a `spare` or `unfitted` pin has no `to`: no wire leaves it | `{pin: '4', type: spare}` | `{pin: '4', type: spare, to: APPS1}` | error | |
 | `to-reaches` | when `to` is a box, that box has a pin with the same net and type | `ACC` `power:24V` `to: PDU Box`, and `PDU Box` has an `ACC` `power:24V` pin | `to: Front Box` with no matching pin in `Front Box` | error | yes |
 | `at-form` | `at` is `pass`, or `<board>:<pin>` with a board in `boards` | `te:RB0`, `pass` | `RB0`, `pdu:RB0` in a box without `pdu` | error | |
 | `at-pass` | a `pass` pin has a pin with the same net and type on another connector of its box | | `pass` with nothing to pass to | error | yes |
