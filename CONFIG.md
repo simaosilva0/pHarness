@@ -320,7 +320,7 @@ ASMS, is in no box file, only the boxes' taps on it are.
 |---|---|---|---|---|---|
 | `box-style` | the box is in the `box` style | `Front Box`, `HW FL Box` | `Front box`, `front_box` | error | |
 | `connector-style` | the connector is in the `connector` style | `Rear Supply`, `CAN Analog` | `rear supply`, `ASL006-05SA (yellow)` | error | |
-| `device-style` | the device is in the `device` style | `Sus Pot FL`, `Cylinder Detection 0` | `sus pot FL`, `Sus_Pot_FL` | error | |
+| `device-style` | the device is in the `device` style, and so is the name of a chain node inside a box, named after the part it is | `Sus Pot FL`, `Cylinder Detection 0` | `sus pot FL`, `Sus_Pot_FL` | error | |
 | `board-style` | the board is in the `board` style | `te`, `suspot-front` | `TE`, `suspot_front` | error | |
 | `box-not-board` | the box is not named like a board in it, ignoring case and separators | `PDU Box` holding `pdu` | `PDU` holding `pdu` | error | |
 
