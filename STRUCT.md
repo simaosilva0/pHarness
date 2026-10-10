@@ -31,6 +31,23 @@ A project can start with boxes only. Without cables, pins are joined by net and
 type: every pin with the same net and the same type is one conductor. Cables
 add the actual wires once they are known.
 
+## `config.yaml`
+
+What each setting means is in `CONFIG.md`. Every one is written, even at its
+default, so the file shows everything a project can change.
+
+| field | | |
+|---|---|---|
+| `style` | required | the style of every kind of name: `net`, `box`, `connector`, `device`, `board` |
+| `sides` | required | the sides a net may start with; `[]` for none |
+| `types` | required | every kind, each with its `types`; a kind not used is `{types: []}` |
+| `rules` | required | every adjustable rule, with its level |
+| `accept` | required | accepted entries by rule; `{}` for none |
+
+| rule | passes when | ok | wrong | level | adjustable |
+|---|---|---|---|---|---|
+| `config-fields` | every field above is there, `style` lists every kind of name, `types` every kind (each with `types`), `rules` every adjustable rule | `lin: {types: []}` | no `lin` under `types`; no `accept` | error | |
+
 ## `car.yaml`
 
 ```yaml
@@ -219,3 +236,5 @@ tool can print for every pin.
 - Buses and links list their `ends`: the boxes they land in and the devices,
   never a box they only pass through.
 - `part` is optional.
+- `config.yaml` writes every setting, defaults included: nothing the project can
+  change is hidden in the tool.

@@ -38,14 +38,28 @@ types:
   pair:     {types: [analog, digital, hv], qualifiers: [P, N]}
   phase:    {types: [hv], qualifiers: [U, V, W]}
   can:      {types: [can], qualifiers: [H, L]}
+  lin:      {types: []}
+  rs485:    {types: []}
+  i2c:      {types: []}
+  spi:      {types: []}
   serial:   {types: [serial], qualifiers: [TX, RX]}
   shield:   {types: [shield], label: SHIELD}
   ethernet: {types: [ethernet], qualifiers: [1, 2, 3, 4, 5, 6, 7, 8]}
   chain:    {types: [chain]}
   no_net:   {types: [spare, unfitted]}
+
+rules:
+  conductor-one-end: warn
+  # ... every adjustable rule (Rule levels, at the end)
+
+accept: {}
 ```
 
-The examples here use these words and the default styles.
+Every setting is written, even at its default, so the file shows everything a
+project can change: every kind of name under `style`, every kind under
+`types`, every adjustable rule under `rules`, and `accept` even when empty
+(STRUCT.md, `config.yaml`). The examples here use these words and the default
+styles.
 
 Each section ends with the rules the tool checks, one per row: when an entry
 passes, an example that passes and one that does not, its level, and whether a
@@ -63,8 +77,8 @@ person can check them.
 
 ## Styles
 
-Every kind of name is written in one style, set under `style`. Left out, a kind
-keeps its default, and so does a project with no `style` at all:
+Every kind of name is written in one style, set under `style`, which lists all
+five. The default is what a new project starts with:
 
 | kind | default | example |
 |---|---|---|
@@ -151,8 +165,9 @@ Every pin has a type, and the type says which conductor of the net the pin is
 on. Types are lower case, written `word` or `word:qualifier`.
 
 The kinds under `types` are fixed, since the tool needs them; the words in them
-are the project's (a team with SENT sensors adds `sent` under `signal`). A kind
-has either a `label` or `qualifiers`:
+are the project's (a team with SENT sensors adds `sent` under `signal`). Every
+kind is listed; one the project does not use is `{types: []}` alone (FST has no
+LIN: `lin: {types: []}`). A kind in use has either a `label` or `qualifiers`:
 
 - with a `label`, the type is one of its words: `ground`, `analog`, `shield`
 - with `qualifiers`, the type is a word and a qualifier: `power:24V`, `can:H`,
@@ -192,7 +207,7 @@ was for.
 | rule | passes when | ok | wrong | level | adjustable |
 |---|---|---|---|---|---|
 | `type-kinds` | every kind under `types` is one of the fifteen above | `serial` | `usb` | error | |
-| `kind-form` | a kind has a `label` or `qualifiers`, not both; `chain` and `no_net` have neither | `ground: {types: [ground], label: GND}` | `ground: {types: [ground], label: GND, qualifiers: [A]}` | error | |
+| `kind-form` | a kind has a `label` or `qualifiers`, not both; `chain` and `no_net` have neither; a kind not used (`types: []`) has neither | `ground: {types: [ground], label: GND}`, `lin: {types: []}` | `ground: {types: [ground], label: GND, qualifiers: [A]}`, `lin: {types: [], label: DATA}` | error | |
 | `type-word-case` | every type word is lower case letters and digits | `sent` | `SENT`, `can-fd` | error | |
 | `type-word-twice` | a word is in two kinds only when exactly one of them has qualifiers, or it is `hv` in `pair` and `phase` | `analog` in `signal` and `pair` | `power` in `supply` and `pair` | error | |
 | `type-reserved` | `hv` is in `pair`, and may also be in `phase`; `spare` and `unfitted` are in `no_net` | | `spare` under `signal` | error | |
@@ -329,12 +344,19 @@ ASMS, is in no box file, only the boxes' taps on it are.
 
 ## Rule levels
 
-A project changes the level of an adjustable rule under `rules` in
-`config.yaml`. A rule left out keeps the level in its table:
+Every adjustable rule is listed under `rules` in `config.yaml` with its level.
+A new project starts with the level in its table, and changes it there:
 
 ```yaml
 rules:
   conductor-one-end: error
+  unfitted-note: error
+  chain-out-used: warn
+  ends-match: error
+  bus-internal: error
+  device-used: warn
+  to-reaches: error
+  at-pass: error
   pin-order: off
 ```
 
@@ -372,6 +394,8 @@ accept:
   bus-internal:
     CAN_X1: spare bus, kept for later
 ```
+
+A project with nothing to accept writes `accept: {}`.
 
 The report prints every problem of an adjustable rule with its entry, as it is
 written here, so accepting it is a copy. An accepted entry is not reported. The list stays in one place, away from the
