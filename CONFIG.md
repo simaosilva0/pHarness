@@ -164,7 +164,7 @@ A word may be in two kinds when one has qualifiers and the other does not:
 
 | kind | conductor | example pin |
 |---|---|---|
-| `supply` | supply at that voltage | `LEFT_PUMP`, `power:24V` |
+| `supply` | supply at that voltage. A qualifier is one word, so 3.3 V is `3V3` and −12 V would be `N12V` | `LEFT_PUMP`, `power:24V` |
 | `ground` | return | `LEFT_PUMP`, `ground` |
 | `signal` | a single analog or digital signal, every one of them. A net has one signal: a fan's speed command and tachometer are two nets, `LEFT_FAN` `pwm` and `LEFT_FAN_TACH` `freq`, since both would be `LEFT_FAN_SIG` | `FL_SUSPOT`, `analog` |
 | `pair` | the two halves of a differential pair, or the high voltage | `FR_ENCODER_DATA`, `digital:P`; `HV`, `hv:N` |
