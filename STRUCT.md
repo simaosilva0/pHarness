@@ -56,7 +56,7 @@ chains:
 | field | | |
 |---|---|---|
 | `car` | required | the car's name |
-| `devices` | optional | every part that is not a box but has pins wired to it: sensors, switches, lamps, motors. Keyed by name (device rule in `CONFIG.md`), each with an optional `note` |
+| `devices` | optional | every part that is not a box but has pins wired to it: sensors, switches, lamps, motors. A device is where wires end: anything they pass through is a box, even with nothing inside (a bulkhead, a charge port). Keyed by name (device rule in `CONFIG.md`), each with an optional `note` |
 | `buses` | optional | CAN buses, keyed by name (`CAN_<BUS>`). `bitrate`, and `data_bitrate` for CAN FD, its `ends` (the boxes it lands in and the devices on it, not the boxes it only passes through), `internal: true` when it never leaves its box |
 | `links` | optional | Ethernet links, keyed by name (`ETH_<LINK>`), with their `ends` (boxes or devices) |
 | `chains` | optional | series loops in the order current flows (`CONFIG.md`). Each node has a `node` name, an `out` label and, when the node is inside a box, that `box`; a node outside every box is a device |
