@@ -1,0 +1,43 @@
+# Kestrel: a made-up car, the project the tests plant their errors in.
+# Nets in snake case, boxes in PascalCase, connectors in kebab case,
+# boards in snake case. 12 V low voltage, corners as sides.
+style:
+  net: snake
+  box: pascal
+  connector: kebab
+  device: title
+  board: snake
+
+sides: [left, right, fl, fr, rl, rr]
+
+types:
+  supply:   {types: [power], qualifiers: [12v, 5v]}
+  ground:   {types: [ground], label: gnd}
+  signal:   {types: [analog, digital, pwm, freq, sent], label: sig}
+  pair:     {types: [analog, hv], qualifiers: [p, n]}
+  phase:    {types: [hv], qualifiers: [u, v, w]}
+  can:      {types: [can], qualifiers: [h, l]}
+  lin:      {types: [lin], label: data}
+  rs485:    {types: [rs485], qualifiers: [a, b]}
+  i2c:      {types: [i2c], qualifiers: [sda, scl]}
+  spi:      {types: [spi], qualifiers: [sck, mosi, miso, cs0, cs1]}
+  serial:   {types: [serial], qualifiers: [tx, rx]}
+  shield:   {types: [shield], label: shield}
+  ethernet: {types: [ethernet], qualifiers: [p, n]}
+  chain:    {types: [chain]}
+  no_net:   {types: [spare, unfitted]}
+
+# Every adjustable rule, at its level (CONFIG.md, Rule levels).
+rules:
+  conductor-one-end: warn
+  unfitted-note: error
+  chain-out-used: warn
+  ends-match: error
+  bus-internal: error
+  device-used: warn
+  to-reaches: error
+  at-pass: error
+  pin-order: warn
+
+# Entries known to break an adjustable rule, each with its reason.
+accept: {}

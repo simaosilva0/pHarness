@@ -1,0 +1,38 @@
+box: Bulkhead
+note: bulkhead connectors behind the front hoop, nothing inside but wires
+
+connectors:
+  nose:
+    part: AS612-35PN
+    pins:
+      - {pin: A, net: front_io, type: power:12v, to: Nose, at: pass}
+      - {pin: B, net: front_io, type: ground, to: Nose, at: pass}
+      - {pin: C, net: imu, type: power:12v, to: Nose, at: pass}
+      - {pin: D, net: imu, type: ground, to: Nose, at: pass}
+      - {pin: E, net: can_chassis, type: can:h, to: Nose, at: pass}
+      - {pin: F, net: can_chassis, type: can:l, to: Nose, at: pass}
+      - {pin: G, net: sdc, type: chain:s2, to: Nose, at: pass}
+      - {pin: H, net: sdc, type: chain:s4, to: Nose, at: pass}
+      - {pin: J, type: spare}
+  cockpit:
+    part: AS610-35PN
+    pins:
+      - {pin: A, net: dash, type: power:12v, to: Cockpit, at: pass}
+      - {pin: B, net: dash, type: ground, to: Cockpit, at: pass}
+      - {pin: C, net: can_chassis, type: can:h, to: Cockpit, at: pass}
+      - {pin: D, net: can_chassis, type: can:l, to: Cockpit, at: pass}
+      - {pin: E, net: sdc, type: chain:s1, to: Cockpit, at: pass}
+      - {pin: F, net: sdc, type: chain:s2, to: Cockpit, at: pass}
+  rear:
+    part: AS614-35PN
+    pins:
+      - {pin: A, net: front_io, type: power:12v, to: RearHub, at: pass}
+      - {pin: B, net: front_io, type: ground, to: RearHub, at: pass}
+      - {pin: C, net: imu, type: power:12v, to: RearHub, at: pass}
+      - {pin: D, net: imu, type: ground, to: RearHub, at: pass}
+      - {pin: E, net: dash, type: power:12v, to: RearHub, at: pass}
+      - {pin: F, net: dash, type: ground, to: RearHub, at: pass}
+      - {pin: G, net: can_chassis, type: can:h, to: RearHub, at: pass}
+      - {pin: H, net: can_chassis, type: can:l, to: RearHub, at: pass}
+      - {pin: J, net: sdc, type: chain:s1, to: RearHub, at: pass}
+      - {pin: K, net: sdc, type: chain:s4, to: RearHub, at: pass}

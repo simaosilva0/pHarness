@@ -1,0 +1,46 @@
+box: Cockpit
+boards: [dash]
+note: behind the dashboard
+
+connectors:
+  harness:
+    part: AS610-35SN
+    pins:
+      - {pin: A, net: dash, type: power:12v, to: Bulkhead}
+      - {pin: B, net: dash, type: ground, to: Bulkhead}
+      - {pin: C, net: can_chassis, type: can:h, to: Bulkhead, at: dash:canh}
+      - {pin: D, net: can_chassis, type: can:l, to: Bulkhead, at: dash:canl}
+      - {pin: E, net: sdc, type: chain:s1, to: Bulkhead}
+      - {pin: F, net: sdc, type: chain:s2, to: Bulkhead}
+  wheel:
+    part: quick release, 4 pin
+    pins:
+      - {pin: '1', net: steering_wheel, type: power:12v, to: Steering Wheel}
+      - {pin: '2', net: steering_wheel, type: ground, to: Steering Wheel}
+      - {pin: '3', net: lin_wheel, type: lin, to: Steering Wheel, at: dash:lin0}
+      - {pin: '4', type: spare}
+  display:
+    part: DT06-6S
+    pins:
+      - {pin: '1', net: display, type: power:12v, to: Display}
+      - {pin: '2', net: display, type: ground, to: Display}
+      - {pin: '3', net: display, type: serial:tx, to: Display, at: dash:tx1}
+      - {pin: '4', net: display, type: serial:rx, to: Display, at: dash:rx1}
+      - {pin: '5', type: spare}
+      - {pin: '6', type: spare}
+  cabin:
+    part: DT06-4S
+    pins:
+      - {pin: '1', net: cabin_sensor, type: power:5v, to: Cabin Sensor}
+      - {pin: '2', net: cabin_sensor, type: ground, to: Cabin Sensor}
+      - {pin: '3', net: i2c_cabin, type: i2c:sda, to: Cabin Sensor, at: dash:sda0}
+      - {pin: '4', net: i2c_cabin, type: i2c:scl, to: Cabin Sensor, at: dash:scl0}
+  buttons:
+    part: DT06-6S
+    pins:
+      - {pin: '1', net: sdc, type: chain:s1, to: Cockpit Shutdown Button}
+      - {pin: '2', net: sdc, type: chain:s2, to: Cockpit Shutdown Button, at: dash:sense0}
+      - {pin: '3', net: rtd_button, type: digital, to: RTD Button, at: dash:in0}
+      - {pin: '4', net: rtd_button, type: ground, to: RTD Button}
+      - {pin: '5', type: spare}
+      - {pin: '6', type: spare}

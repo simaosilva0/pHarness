@@ -1,0 +1,32 @@
+box: Battery
+boards: [bms]
+note: the accumulator; the BMS master, the IMD and the AIRs inside
+
+connectors:
+  lv:
+    part: DT06-8S
+    pins:
+      - {pin: '1', net: bms, type: power:12v, to: RearHub}
+      - {pin: '2', net: bms, type: ground, to: RearHub}
+      - {pin: '3', net: can_drive, type: can:h, to: RearHub, at: bms:canh}
+      - {pin: '4', net: can_drive, type: can:l, to: RearHub, at: bms:canl}
+      - {pin: '5', net: sdc, type: chain:s5, to: RearHub, note: into the IMD relay}
+      - {pin: '6', net: sdc, type: chain:s7, to: RearHub, at: bms:sdc_out}
+      - {pin: '7', net: sdc, type: chain:s8, to: RearHub, note: the AIR coils}
+      - {pin: '8', type: spare}
+  hv:
+    part: HVA280 2 pole
+    pins:
+      - {pin: '+', net: hv, type: hv:p, to: Inverter}
+      - {pin: '-', net: hv, type: hv:n, to: Inverter}
+      - {pin: '1', net: hvil, type: chain:1, to: Inverter, at: bms:hvil_out}
+      - {pin: '2', net: hvil, type: chain:2, to: Inverter, at: pass}
+  charge:
+    part: HVA280 2 pole
+    pins:
+      - {pin: '+', net: charge, type: hv:p, to: ChargePort}
+      - {pin: '-', net: charge, type: hv:n, to: ChargePort}
+      - {pin: '1', net: hvil, type: chain:2, to: ChargePort, at: pass}
+      - {pin: '2', net: hvil, type: chain:3, to: ChargePort, at: bms:hvil_in}
+      - {pin: '3', net: can_charge, type: can:h, to: ChargePort, at: bms:can1h}
+      - {pin: '4', net: can_charge, type: can:l, to: ChargePort, at: bms:can1l}
