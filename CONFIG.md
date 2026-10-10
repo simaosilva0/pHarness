@@ -309,6 +309,9 @@ ASMS, is in no box file, only the boxes' taps on it are.
 - **Box**: in the `box` style. A box is never named like a board inside it,
   whatever their styles: the box holding the `pdu` board is `PDU Box`.
 - **Board**: in the `board` style, named after its firmware: `te`, `suspot-front`.
+  Anything inside a box that pins land on counts as a board; one with no
+  firmware (a fuse block, a relay board, a BSPD) is named after what it is:
+  `fuses`, `bspd`.
 - **Connector**: in the `connector` style, unique in its box, named by what it
   connects to or does, not by its part number: `Rear Supply`, `CAN Analog`. The
   part number goes in `part:` (`ASL006-05SA (yellow)` is a part, not a name).
