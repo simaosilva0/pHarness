@@ -155,7 +155,10 @@ on one connector and leaves on another is one conductor without a wire.
 
 ## `cables/<cable>.yaml`
 
-Shape only; the details are decided with step 9.
+Shape only; the details are decided with step 9. A cable says which connectors
+it joins; most of that is already in the `to`s, so cables add only what boxes
+cannot say: a stretch from one device straight to another (LVMS to ASMS on the
+SDC), and which wires run together.
 
 ```yaml
 cable: Pedal Box Splitter
@@ -166,9 +169,34 @@ wires: by-net
 | field | | |
 |---|---|---|
 | `cable` | required | the cable's name, same rule as a box |
-| `ends` | required | the connectors it joins, as `<box>.<connector>` |
-| `wires` | required | `by-net`: one wire between every pair of pins on the two ends with the same net and type. Or a list of wires, each `{from: <box>.<connector>.<pin>, to: ...}`, for anything else |
+| `ends` | required | what it joins: connectors as `<box>.<connector>`, or devices |
+| `wires` | required | `by-net`: one wire between every pair of pins on the two ends with the same net and type. Or a list of wires, each `{from: <box>.<connector>.<pin>, to: ..., color: ...}`, for anything else |
 | `splices` | optional | where one conductor splits inside the cable |
+
+Every wire has a color, set by the project in `config.yaml`, one per type:
+
+```yaml
+color: fill
+colors:
+  ground: black
+  power:24V: red
+  can:H: yellow
+  can:L: green
+```
+
+| `color` | the project writes | a type with no color |
+|---|---|---|
+| `auto` (left out) | no `colors` | gets its kind's color: every supply one color, every ground another |
+| `fill` | some `colors` | gets its kind's color |
+| `strict` | every type in use | is an error |
+
+A wire's own `color` in a cable's list overrides its type's. The drawings'
+legend marks the colors the tool picked, so a chosen red and a picked red are
+never confused.
+
+Left to RapidHarness, after the concept phase: wire gauge, length, twisting
+(a pair type already says it), current, and the pins on a device's own
+connector.
 
 No rules yet: they come with step 9.
 
