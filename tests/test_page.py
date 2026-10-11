@@ -1,5 +1,8 @@
 """The pinout page (page.py) and `pharness build` (cli.py)."""
 
+import re
+import shutil
+
 from pharness.check import read_and_check
 from pharness.cli import main
 from pharness.output.page import render_page
@@ -22,9 +25,10 @@ def test_the_page_has_every_box_and_pin(project):
     page = page_of(project)
     assert page.startswith("<!doctype html>")
     assert "<title>Kestrel pinout</title>" in page
-    assert "7 boxes · 33 connectors · 216 pins" in page
+    assert "7 boxes · 33 connectors · 216 pins · 28 cables · 150 wires" in page
     assert page.count('<section class="box"') == 7
     assert page.count('<tr id="boxes-') == 216
+    assert page.count('<section class="cable"') == 28
 
 
 def test_the_page_needs_nothing_from_outside(project):
@@ -92,3 +96,47 @@ def test_build_writes_nothing_with_an_error(project, capsys):
     assert not (project.root / "build").exists()
     assert "nothing written" in capsys.readouterr().out
 
+
+# --- cables and colors -------------------------------------------------------------
+
+def test_a_far_pin_links_to_its_row(project):
+    page = page_of(project)
+    assert '<a href="#boxes-bulkhead-yaml-37">Bulkhead.rear.G</a>' in page
+    assert '<tr id="boxes-bulkhead-yaml-37">' in page
+
+
+def test_a_cable_links_to_its_section(project):
+    page = page_of(project)
+    assert '<a href="#cables-rear-signal-yaml">Rear Signal</a>' in page
+    assert '<section class="cable" id="cables-rear-signal-yaml">' in page
+
+
+def test_a_color_has_a_swatch_and_picked_is_italic(project):
+    page = page_of(project)
+    assert '<span class="swatch" style="background: #fdd835"></span><span class="picked">yellow</span>' in page
+    assert "linear-gradient(135deg, #1e63c6 38%, #ffffff 38% 62%, #1e63c6 62%)" in page
+
+
+def test_a_chosen_color_is_not_italic(project):
+    project.replace("config.yaml", "color: auto\n", "color: fill\ncolors:\n  ground: brown\n")
+    page = page_of(project)
+    assert '<span class="swatch" style="background: #7b4a26"></span>brown</td>' in page
+
+
+def test_a_cable_named_like_a_box_links_to_the_cable(project):
+    project.remove("cables/imu_lead.yaml")
+    project.write("cables/nose.yaml", "cable: Nose\nends: [Nose.imu, IMU]\n")
+    project.replace("boxes/nose.yaml", "    cable: IMU Lead\n", "    cable: Nose\n")
+    page = page_of(project)
+    assert '<a href="#cables-nose-yaml">Nose</a>' in page
+    assert '<a href="#boxes-nose-yaml">Nose</a>' in page
+
+
+def test_without_cables_no_cable_section(project):
+    shutil.rmtree(project.root / "cables")
+    for path in (project.root / "boxes").glob("*.yaml"):
+        text = re.sub(r"\n    cable: [^\n]*", "", path.read_text())
+        path.write_text(re.sub(r", cable: [^,}]*", "", text))
+    page = page_of(project)
+    assert 'id="cables"' not in page
+    assert "216 pins</div>" in page

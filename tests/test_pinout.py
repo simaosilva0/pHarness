@@ -116,3 +116,71 @@ def test_a_warning_is_listed_and_on_its_pin(project):
     assert [w.rule for w in horn.warnings] == ["conductor-one-end"]
     assert row(pinout, "Nose", "bots", "1").warnings == []
 
+
+# --- cables and colors -----------------------------------------------------------
+
+def cable(pinout, name):
+    for one in pinout.cables:
+        if one.name == name:
+            return one
+    raise AssertionError(f"no cable {name}")
+
+
+def test_a_row_knows_its_cable_far_pin_and_color(project):
+    one = row(pinout_of(project), "RearHub", "front", "G")
+    assert (one.cable, one.far, one.far_where) == ("Rear Signal", "Bulkhead.rear.G", "boxes/bulkhead.yaml:37")
+    assert (one.color, one.color_picked) == ("yellow", True)
+
+
+def test_a_row_to_a_device_has_no_far_pin(project):
+    one = row(pinout_of(project), "Nose", "imu", "1")
+    assert (one.to, one.far, one.cable) == ("IMU", None, "IMU Lead")
+
+
+def test_a_spare_pin_has_no_color(project):
+    one = row(pinout_of(project), "Battery", "lv", "8")
+    assert (one.cable, one.color) == (None, None)
+
+
+def test_a_pin_color_is_on_both_ends_of_its_wire(project):
+    project.replace("boxes/bulkhead.yaml", "to: RearHub, cable: Rear Power, at: pass}\n      - {pin: B",
+                    "to: RearHub, cable: Rear Power, color: blue, at: pass}\n      - {pin: B")
+    pinout = pinout_of(project)
+    assert (row(pinout, "Bulkhead", "rear", "A").color, row(pinout, "Bulkhead", "rear", "A").color_picked) == ("blue", False)
+    assert row(pinout, "RearHub", "front", "A").color == "blue"
+
+
+def test_every_wire_once(project):
+    pinout = pinout_of(project)
+    assert len(pinout.cables) == 28
+    assert pinout.wire_count() == 150
+    rear = cable(pinout, "Rear Signal")
+    assert [(w.start, w.end) for w in rear.wires] == [
+        ("Bulkhead.rear.G", "RearHub.front.G"), ("Bulkhead.rear.H", "RearHub.front.H"),
+        ("Bulkhead.rear.J", "RearHub.front.J"), ("Bulkhead.rear.K", "RearHub.front.K")]
+
+
+def test_a_wire_to_a_device(project):
+    pedals = cable(pinout_of(project), "Pedals")
+    first = pedals.wires[0]
+    assert (first.start, first.end, first.end_where, first.wire) == ("Nose.pedals.1", "APPS1", None, "apps1_gnd")
+
+
+def test_a_listed_wire(project):
+    project.write("cables/hoop_link.yaml", """cable: Hoop Link
+ends: [Left Shutdown Button, Right Shutdown Button]
+wires:
+  - {net: sdc, type: chain:s0, from: Left Shutdown Button, to: Right Shutdown Button, color: white}
+""")
+    wire = cable(pinout_of(project), "Hoop Link").wires[0]
+    assert (wire.start, wire.end, wire.wire, wire.color, wire.color_picked) == (
+        "Left Shutdown Button", "Right Shutdown Button", "sdc_s0", "white", False)
+
+
+def test_the_legend_has_each_type_once_and_a_chain_as_one(project):
+    legend = pinout_of(project).colors
+    types = [one.type for one in legend]
+    assert len(types) == len(set(types))
+    assert "chain:*" in types
+    assert not any(t.startswith("chain:s") for t in types)
+    assert "shield" not in types
