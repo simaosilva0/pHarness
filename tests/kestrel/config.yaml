@@ -39,10 +39,12 @@ rules:
   chain-order: error
   ends-match: error
   bus-internal: error
+  bus-reach: error
   device-used: warn
   to-reaches: error
   at-pass: error
   pin-order: warn
+  pair-cable: warn
   cable-used: warn
   to-cabled: warn
   hv-orange: error

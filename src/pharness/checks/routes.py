@@ -15,6 +15,7 @@ def check_routes(model, nets, report):
     check_conductors(model, nets, report)
     check_tos(model, report)
     check_ends(model, report)
+    check_bus_reach(model, report)
     check_devices_used(model, report)
     check_chain_outs(model, report)
     check_chain_order(model, report)
@@ -135,6 +136,63 @@ def lands_on(model, net):
         if model.is_device(pin.to) and pin.to not in on:
             on.append(pin.to)
     return on
+
+
+def check_bus_reach(model, report):
+    """bus-reach: every conductor of a bus or link, followed along its wires,
+    reaches every end in one piece; on SPI, where each chip select goes to one
+    device, only in one piece. Skipped where another rule already says what is
+    wrong: ends that are unknown or do not match, a `to` that goes nowhere. An
+    `internal` bus never reaches a connector. A stretch from one device
+    straight to another is only in a cable's list of wires, so nothing is
+    judged until there is a `cables/` folder."""
+    car = model.car
+    for group, entries in [("buses", car.buses), ("links", car.links)]:
+        lines = car.data.get(group).at
+        for name, entry in entries.items():
+            conductors = bus_conductors(model, name)
+            ends = entry.get("ends")
+            judged = (model.has_cables and isinstance(ends, list) and not entry.get("internal")
+                      and all(model.is_box_or_device(end) for end in ends)
+                      and set(lands_on(model, name)) == set(ends))
+            for type_ in conductors:
+                key = f"{name} {type_}"
+                stretch = Stretch(model, name, type_)
+                if not judged or stretch.broken:
+                    report.skip("bus-reach", key)
+                    continue
+                reasons = reach_problems(model, stretch, ends, type_)
+                report.check("bus-reach", not reasons, f"car.yaml:{lines[name]}",
+                             "; ".join(reasons), key)
+
+
+def bus_conductors(model, net):
+    """The types on a bus or link, from its pins and listed wires, in reading order."""
+    types = []
+    for pin in model.pins():
+        if pin.net == net and pin.type is not None and pin.type not in types:
+            types.append(pin.type)
+    for cable in model.cables:
+        for wire in cable.wires:
+            if wire.net == net and wire.type is not None and wire.type not in types:
+                types.append(wire.type)
+    return types
+
+
+def reach_problems(model, stretch, ends, type_):
+    """What is wrong with one conductor of a bus, as a list of reasons."""
+    reasons = []
+    word, _ = split_type(type_)
+    spi = model.settings.kinds.get("spi")
+    if spi is None or word not in spi.words:
+        missed = [str(end) for end in ends if not stretch.lands(end)]
+        if missed:
+            reasons.append(f"does not reach {', '.join(missed)}")
+    groups = stretch.groups()
+    if len(groups) > 1:
+        pieces = " | ".join(", ".join(str(one) for one in group) for group in groups)
+        reasons.append(f"in {len(groups)} pieces with no wire between: {pieces}")
+    return reasons
 
 
 def check_bus_internal(model, name, bus, ends, at, report):

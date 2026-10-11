@@ -4,6 +4,8 @@ cables; CONFIG.md, Boxes, connectors, devices, boards, cables)."""
 import re
 import shutil
 
+from pharness.check import read_and_check
+
 CONFIG = "config.yaml"
 NOSE = "boxes/nose.yaml"
 REARHUB = "boxes/rearhub.yaml"
@@ -163,3 +165,26 @@ def test_without_cables_nothing_needs_one(project):
 def test_an_unread_cable_file_is_reported_once(project):
     project.write(LEFT_COOLING, "cable: Left Cooling\nends: [\n")
     assert project.broken_rules() == ["yaml"]
+
+
+# --- twisted pairs -------------------------------------------------------------------
+
+def test_a_pair_split_across_two_cables(project):
+    # can:l moves to Rear Power at both ends: the wire is sound, the pair is not.
+    project.replace(REARHUB, "{pin: H, net: can_chassis, type: can:l, to: Bulkhead, cable: Rear Signal",
+                    "{pin: H, net: can_chassis, type: can:l, to: Bulkhead, cable: Rear Power")
+    project.replace(BULKHEAD, "{pin: H, net: can_chassis, type: can:l, to: RearHub, cable: Rear Signal",
+                    "{pin: H, net: can_chassis, type: can:l, to: RearHub, cable: Rear Power")
+    assert problems(project) == [
+        ("pair-cable", "boxes/bulkhead.yaml:37", "warn", "Bulkhead.rear.G"),
+        ("pair-cable", "boxes/rearhub.yaml:21", "warn", "RearHub.front.G"),
+    ]
+
+
+def test_hv_is_no_twisted_pair(project):
+    # HV+ and HV- run as two single cables.
+    _, model = read_and_check(project.root)
+    pairs = model.settings.twisted_pairs()
+    assert ("can:h", "can:l") in pairs
+    assert ("analog:p", "analog:n") in pairs
+    assert not any(first.startswith("hv:") for first, _ in pairs)

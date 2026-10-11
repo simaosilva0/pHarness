@@ -12,7 +12,7 @@ from ..rules.rules import LEVELS, RULES
 FILE = "config.yaml"
 CONFIG_FIELDS = ["style", "sides", "types", "palette", "color", "colors", "rules", "accept"]
 REQUIRED_FIELDS = ["style", "sides", "types", "palette", "color", "rules", "accept"]
-KIND_FIELDS = ["types", "label", "qualifiers"]
+KIND_FIELDS = ["types", "label", "qualifiers", "pairs"]
 
 
 def check_config(config, report):
@@ -125,6 +125,7 @@ def read_kinds(config, report):
         qualifiers = [str(q) for q in get_list(entry, "qualifiers", FILE, report)]
         well_formed = check_kind_form(name, entry, words, at, report)
         kinds[name] = Kind(name, words, label, qualifiers, types.at[name], well_formed)
+        kinds[name].pairs = read_pairs(name, entry, qualifiers, at, report)
 
     return kinds
 
@@ -147,6 +148,42 @@ def check_kind_form(name, entry, words, at, report):
         ok = has_label != has_qualifiers
         what = f"{name} takes a label or qualifiers, exactly one of them"
     return report.check("kind-form", ok, at, what)
+
+
+def read_pairs(name, entry, qualifiers, at, report):
+    """eth-pairs: `pairs` only on ethernet, and there exactly when it has more
+    than two qualifiers; each pair two of them, each qualifier in one pair.
+    Returns the pairs, or [] when they are wrong."""
+    if "pairs" not in entry:
+        report.check("eth-pairs", name != "ethernet" or len(qualifiers) <= 2, at,
+                     f"ethernet has {len(qualifiers)} qualifiers, so it says its pairs")
+        return []
+    if not report.check("eth-pairs", name == "ethernet", at, f"{name} takes no pairs"):
+        return []
+    if not report.check("eth-pairs", len(qualifiers) > 2, at,
+                        f"ethernet has {len(qualifiers)} qualifiers: they are one pair, written nowhere"):
+        return []
+
+    pairs = []
+    for pair in get_list(entry, "pairs", FILE, report):
+        if not isinstance(pair, list) or len(pair) != 2:
+            report.check("eth-pairs", False, at, f"ethernet pair {pair} is not two qualifiers")
+            return []
+        pairs.append(tuple(str(q) for q in pair))
+    in_pairs = [q for pair in pairs for q in pair]
+    unknown = [q for q in in_pairs if q not in qualifiers]
+    twice = sorted({q for q in in_pairs if in_pairs.count(q) > 1})
+    left_out = [q for q in qualifiers if q not in in_pairs]
+    reasons = []
+    if unknown:
+        reasons.append(f"{', '.join(unknown)} not a qualifier")
+    if twice:
+        reasons.append(f"{', '.join(twice)} in two pairs")
+    if left_out:
+        reasons.append(f"{', '.join(left_out)} in no pair")
+    if not report.check("eth-pairs", not reasons, at, f"ethernet pairs: {'; '.join(reasons)}"):
+        return []
+    return pairs
 
 
 def check_type_words(kinds, report):

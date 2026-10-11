@@ -41,12 +41,19 @@ def entries_by_rule(model):
         "unfitted-note": pins,
         "pin-order": pins,
         "conductor-one-end": conductors,
+        "bus-reach": conductors + wire_conductors(model),
         "chain-out-used": outs,
         "chain-order": outs,
         "ends-match": buses + links,
         "bus-internal": buses,
         "device-used": devices,
         "to-cabled": pins,
+        "pair-cable": pins,
         "cable-used": cables,
         "hv-orange": list(model.settings.colors) + pins,
     }
+
+
+def wire_conductors(model):
+    """The conductors only on listed wires, named like conductors."""
+    return [f"{wire.net} {wire.type}" for cable in model.cables for wire in cable.wires]

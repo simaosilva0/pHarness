@@ -53,9 +53,19 @@ class Stretch:
         self.pieces[self.piece(one)] = self.piece(other)
 
     def reaches(self, node):
-        if node.box is not None:
-            return node.box in self.landed
-        return node.name in self.devices
+        return self.lands(place(node))
+
+    def lands(self, place_):
+        """Whether it lands in a box (a pin there that is not `pass`) or
+        reaches a device."""
+        return place_ in self.landed or place_ in self.devices
+
+    def groups(self):
+        """The places it reaches, in its pieces: one list when it is whole."""
+        groups = {}
+        for one in self.pieces:
+            groups.setdefault(self.piece(one), []).append(one)
+        return list(groups.values())
 
     def joins(self, one, other):
         return self.piece(place(one)) == self.piece(place(other))

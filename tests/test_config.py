@@ -7,7 +7,7 @@ CONFIG = "config.yaml"
 
 def test_an_unknown_field(project):
     project.add(CONFIG, "colour: auto\n")
-    assert project.broken() == [("field-known", "config.yaml:52")]
+    assert project.broken() == [("field-known", "config.yaml:54")]
 
 
 def test_a_setting_left_out(project):
@@ -117,6 +117,43 @@ def test_spare_outside_no_net(project):
     assert project.broken_rules() == ["type-reserved", "type-word-twice"]
 
 
+
+# --- ethernet pairs -----------------------------------------------------------
+
+ETHERNET = "  ethernet: {types: [ethernet], qualifiers: [p, n]}\n"
+RJ45 = "  ethernet: {types: [ethernet], qualifiers: [1, 2, 3, 4, 5, 6, 7, 8]%s}\n"
+
+
+def eth_pairs(project):
+    return [one for one in project.broken() if one[0] == "eth-pairs"]
+
+
+def test_two_qualifiers_are_one_pair(project):
+    project.replace(CONFIG, ETHERNET, "  ethernet: {types: [ethernet], qualifiers: [p, n], pairs: [[p, n]]}\n")
+    assert project.broken() == [("eth-pairs", "config.yaml:27")]
+
+
+def test_rj45_qualifiers_need_their_pairs(project):
+    # The pins on eth_logger are ethernet:p and :n, so pin-type breaks too.
+    project.replace(CONFIG, ETHERNET, RJ45 % "")
+    assert eth_pairs(project) == [("eth-pairs", "config.yaml:27")]
+
+
+def test_rj45_qualifiers_in_t568_pairs(project):
+    project.replace(CONFIG, ETHERNET, RJ45 % ", pairs: [[1, 2], [3, 6], [4, 5], [7, 8]]")
+    assert eth_pairs(project) == []
+
+
+def test_a_qualifier_in_two_pairs_or_none(project):
+    project.replace(CONFIG, ETHERNET, RJ45 % ", pairs: [[1, 2], [2, 3], [4, 5], [7, 8]]")
+    assert eth_pairs(project) == [("eth-pairs", "config.yaml:27")]
+
+
+def test_pairs_only_on_ethernet(project):
+    project.replace(CONFIG, "{types: [can], qualifiers: [h, l]}", "{types: [can], qualifiers: [h, l], pairs: [[h, l]]}")
+    assert project.broken() == [("eth-pairs", "config.yaml:20")]
+
+
 # --- rule levels -------------------------------------------------------------
 
 def test_rule_levels(project):
@@ -127,26 +164,26 @@ def test_rule_levels(project):
 
 def test_a_rule_that_does_not_exist(project):
     project.replace(CONFIG, "  pin-order: warn\n", "  pin-order: warn\n  pin-orders: off\n")
-    assert project.broken() == [("rule-known", "config.yaml:46")]
+    assert project.broken() == [("rule-known", "config.yaml:47")]
 
 
 def test_a_level_that_does_not_exist(project):
     project.replace(CONFIG, "  pin-order: warn\n", "  pin-order: pass\n")
-    assert project.broken() == [("rule-level", "config.yaml:45")]
+    assert project.broken() == [("rule-level", "config.yaml:46")]
 
 
 def test_a_fixed_rule_cannot_change(project):
     project.replace(CONFIG, "  pin-order: warn\n", "  pin-order: warn\n  net-style: warn\n")
-    assert project.broken() == [("rule-fixed", "config.yaml:46")]
+    assert project.broken() == [("rule-fixed", "config.yaml:47")]
 
 
 # --- accepted entries ----------------------------------------------------------
 
 def test_an_accepted_entry_needs_a_reason(project):
     project.replace(CONFIG, "accept: {}\n", "accept:\n  to-reaches:\n    Nose.harness.A: ''\n")
-    assert ("accept-reason", "config.yaml:53") in project.broken()
+    assert ("accept-reason", "config.yaml:55") in project.broken()
 
 
 def test_a_fixed_rule_cannot_be_accepted(project):
     project.replace(CONFIG, "accept: {}\n", "accept:\n  net-style:\n    foo: no reason needed\n")
-    assert project.broken() == [("rule-fixed", "config.yaml:52")]
+    assert project.broken() == [("rule-fixed", "config.yaml:54")]

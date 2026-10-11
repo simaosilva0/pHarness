@@ -92,6 +92,49 @@ def test_a_bus_without_ends(project):
     assert project.broken() == [("bus-fields", "car.yaml:40")]
 
 
+
+# --- bus reach -------------------------------------------------------------------------
+
+def test_a_bus_conductor_that_misses_an_end(project):
+    # can:h still reaches the IMU, so ends-match is happy; can:l does not.
+    project.replace(NOSE, "{pin: '4', net: can_chassis, type: can:l, to: IMU}", "{pin: '4', type: spare}")
+    assert problems(project) == [("bus-reach", "car.yaml:39", "error", "can_chassis can:l")]
+
+
+def test_a_bus_in_two_pieces(project):
+    # No wire between the Nose and the Bulkhead: the Nose and the IMU are on
+    # their own, the Cockpit and the RearHub on another piece.
+    project.replace(NOSE, "{pin: E, net: can_chassis, type: can:h, to: Bulkhead}", "{pin: E, type: spare}")
+    project.replace(NOSE, "{pin: F, net: can_chassis, type: can:l, to: Bulkhead}", "{pin: F, type: spare}")
+    project.replace(BULKHEAD, "{pin: E, net: can_chassis, type: can:h, to: Nose, at: pass}", "{pin: E, type: spare}")
+    project.replace(BULKHEAD, "{pin: F, net: can_chassis, type: can:l, to: Nose, at: pass}", "{pin: F, type: spare}")
+    assert problems(project) == [("bus-reach", "car.yaml:39", "error", "can_chassis can:h"),
+                                 ("bus-reach", "car.yaml:39", "error", "can_chassis can:l")]
+    what = project.check().sorted_problems()[0].what
+    assert what == "in 2 pieces with no wire between: Bulkhead, Cockpit, RearHub | Nose, IMU"
+
+
+def test_a_chip_select_goes_to_one_device(project):
+    # spi:cs0 reaches only one ADC, and that is right.
+    report = project.check()
+    assert ("bus-reach", "spi_strain spi:cs0") not in report.skipped
+    assert report.problems == []
+
+
+def test_a_bus_whose_ends_do_not_match_is_not_followed(project):
+    project.replace(CAR, "ends: [Nose, Cockpit, RearHub, IMU]", "ends: [Nose, Cockpit, RearHub, IMU, Logger]")
+    assert [rule for rule, _ in project.broken()] == ["ends-match"]
+
+
+def test_without_cables_the_bus_reach_waits(project):
+    shutil.rmtree(project.root / "cables")
+    for path in (project.root / "boxes").glob("*.yaml"):
+        text = re.sub(r"\n    cable: [^\n]*", "", path.read_text())
+        path.write_text(re.sub(r", cable: [^,}]*", "", text))
+    project.replace(NOSE, "{pin: '4', net: can_chassis, type: can:l, to: IMU}", "{pin: '4', type: spare}")
+    assert project.broken() == []
+
+
 # --- devices -------------------------------------------------------------------------
 
 def test_a_device_nothing_uses(project):

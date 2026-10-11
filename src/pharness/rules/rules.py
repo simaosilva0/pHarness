@@ -62,6 +62,7 @@ RULES = {
     "eth-link-name": ERROR,
     "eth-net": ERROR,
     "eth-type": ERROR,
+    "eth-pairs": ERROR,
 
     # CONFIG.md, Chains
     "chain-node": ERROR,
@@ -101,6 +102,7 @@ RULES = {
     "chain-fields": ERROR,
     "ends-known": ERROR,
     "ends-match": Rule("error", True),
+    "bus-reach": Rule("error", True),
     "bus-internal": Rule("error", True),
     "device-used": Rule("warn", True),
 
@@ -132,6 +134,7 @@ RULES = {
     "wire-color": ERROR,
     "cable-used": Rule("warn", True),
     "to-cabled": Rule("warn", True),
+    "pair-cable": Rule("warn", True),
 }
 
 LEVELS = ["error", "warn", "off"]

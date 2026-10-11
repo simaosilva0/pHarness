@@ -28,6 +28,7 @@ def check_cables(model, nets, report):
                 pin_ok = check_pin_cable(model, pin, connector_ok, report)
                 references_ok = references_ok and pin_ok
     check_cables_used(model, references_ok, report)
+    check_pair_cables(model, report)
 
 
 # --- the cable -----------------------------------------------------------------
@@ -200,3 +201,54 @@ def check_cables_used(model, references_ok, report):
             continue
         report.check("cable-used", used, where(cable.file, cable.data, "cable"),
                      f"no wire runs in {cable.name}", cable.name)
+
+
+# --- twisted pairs -----------------------------------------------------------------
+
+def check_pair_cables(model, report):
+    """pair-cable: the two wires of a twisted pair going to the same place are
+    on the same cable. Judged on the wire of the pair's first type, against
+    the wires of the second leaving the same box for the same place. A wire
+    that is not sound (on no cable, or not reaching its far end) is left to
+    the cable rules, and so is a first wire with no partner."""
+    if not model.has_cables:
+        return
+    for first, second in model.settings.twisted_pairs():
+        for pin in model.pins():
+            if pin.type != first or pin.to is None or pin.cable is None:
+                continue
+            if not is_sound(model, pin):
+                report.skip("pair-cable", pin.key)   # the cable rules say so
+                continue
+            partners = [other for other in model.box(pin.box).pins()
+                        if other.is_on(pin.net, second) and other.to == pin.to
+                        and is_sound(model, other)]
+            if not partners:
+                continue
+            cables = [other.cable for other in partners]
+            report.check("pair-cable", pin.cable in cables, pin.where,
+                         f"{pin.net} {first} to {pin.to} is on {pin.cable}, "
+                         f"{second} on {', '.join(sorted(set(cables)))}", pin.key)
+        for cable in model.cables:
+            for wire in cable.wires:
+                if wire.type != first:
+                    continue
+                partners = [other_cable.name for other_cable in model.cables
+                            for other in other_cable.wires
+                            if other.net == wire.net and other.type == second
+                            and set(other.ends) == set(wire.ends)]
+                if partners:
+                    report.check("pair-cable", cable.name in partners, wire.where,
+                                 f"{wire.net} {first} is on {cable.name}, "
+                                 f"{second} on {', '.join(sorted(set(partners)))}")
+
+
+def is_sound(model, pin):
+    """Whether the wire leaving a pin runs in a known cable to its far end:
+    the device, or exactly one pin in that box."""
+    cable = model.cable(pin.cable)
+    if cable is None or not model.cable_ends_known(cable):
+        return False
+    if model.is_device(pin.to):
+        return pin.to in cable.ends
+    return model.far_pin(pin) is not None
