@@ -313,7 +313,7 @@ def render_legend(pinout):
     """The color of each type's wires; italics where the tool picked it."""
     if not pinout.colors:
         return ""
-    rows = "".join(f'<tr><td class="mono">{text(row.type)}</td>'
+    rows = "".join(f'<tr><td class="mono">{text(row.type)}{" tap" if row.tap else ""}</td>'
                    f"<td>{render_color(row.color, row.picked)}</td>"
                    f"<td>{'picked by pHarness' if row.picked else 'config.yaml'}</td></tr>"
                    for row in pinout.colors)

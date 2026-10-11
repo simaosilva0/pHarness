@@ -7,6 +7,7 @@ and later outputs can read them too.
 
 from dataclasses import dataclass, field
 
+from ..project.chains import chain_taps
 from ..project.colors import Colors
 from ..project.labels import split_type, wire_label
 
@@ -68,6 +69,7 @@ class WireRow:
     type: str
     color: str | None
     color_picked: bool
+    tap: bool = False   # a chain wire that only taps the chain
 
 
 @dataclass
@@ -87,6 +89,7 @@ class ColorRow:
     type: str
     color: str
     picked: bool
+    tap: bool = False   # the color of the wires that only tap a chain
 
 
 @dataclass
@@ -118,23 +121,24 @@ def build_pinout(model, report):
     errors: the rows trust that every name and type is right."""
     warnings = [p for p in report.sorted_problems() if p.level == "warn"]
     colors = Colors(model.settings)
-    boxes = [box_pinout(model, colors, box, warnings) for box in model.boxes]
-    cables = [cable_table(model, colors, cable) for cable in model.cables]
+    taps = chain_taps(model)
+    boxes = [box_pinout(model, colors, taps, box, warnings) for box in model.boxes]
+    cables = [cable_table(model, colors, taps, cable) for cable in model.cables]
     legend = color_legend(colors, cables)
     return Pinout(model.car.data.get("car"), boxes, warnings, cables, legend)
 
 
-def box_pinout(model, colors, box, warnings):
+def box_pinout(model, colors, taps, box, warnings):
     connectors = []
     for connector in box.connectors:
-        rows = [pin_row(model, colors, pin, warnings) for pin in connector.pins]
+        rows = [pin_row(model, colors, taps, pin, warnings) for pin in connector.pins]
         part = connector.data.get("part")
         note = connector.data.get("note")
         connectors.append(ConnectorTable(connector.name, part, note, rows))
     return BoxPinout(box.name, box.file, box.boards, box.data.get("note"), connectors)
 
 
-def pin_row(model, colors, pin, warnings):
+def pin_row(model, colors, taps, pin, warnings):
     unused = pin.type in model.no_net_types()
     wire = None
     if not unused and pin.net is not None:
@@ -142,7 +146,7 @@ def pin_row(model, colors, pin, warnings):
     far = model.far_pin(pin)
     color, picked = None, False
     if pin.to is not None and not unused:
-        color, picked = wire_color(colors, pin, far)
+        color, picked = wire_color(colors, pin, far, is_tap(taps, pin.net, pin.type, pin.box, pin.to))
 
     return Row(
         pin=str(pin.name),
@@ -170,7 +174,7 @@ def warnings_on(pin, warnings):
     return [warning for warning in warnings if warning.where == pin.where]
 
 
-def wire_color(colors, pin, far):
+def wire_color(colors, pin, far, tap):
     """The color of the wire leaving a pin, and whether the tool picked it: the
     color written on either end, else its type's."""
     own = pin.data.get("color")
@@ -178,12 +182,17 @@ def wire_color(colors, pin, far):
         own = far.data.get("color")
     if own is not None:
         return own, False
-    return colors.of_type(pin.type), colors.is_picked(pin.type)
+    return colors.of_type(pin.type, tap), colors.is_picked(pin.type)
+
+
+def is_tap(taps, net, type_, one, other):
+    """Whether the wire joining two places only taps its chain."""
+    return frozenset([one, other]) in taps.get((net, type_), set())
 
 
 # --- cables ------------------------------------------------------------------------
 
-def cable_table(model, colors, cable):
+def cable_table(model, colors, taps, cable):
     """Every wire of a cable: from each pin on it to its device or far pin (a
     wire between two pins once), then the wires it lists."""
     wires = []
@@ -194,7 +203,8 @@ def cable_table(model, colors, cable):
         far = model.far_pin(pin)
         if model.is_box(pin.to) and far is None:
             continue   # its far pin is not known: no wire to show
-        color, picked = wire_color(colors, pin, far)
+        tap = is_tap(taps, pin.net, pin.type, pin.box, pin.to)
+        color, picked = wire_color(colors, pin, far, tap)
         if far is not None:
             done.add(far.key)
             end, end_where = far.key, far.where
@@ -202,15 +212,16 @@ def cable_table(model, colors, cable):
             end, end_where = pin.to, None
         wires.append(WireRow(pin.key, pin.where, end, end_where,
                              wire_label(model.settings, pin.net, pin.type), pin.type,
-                             color, picked))
+                             color, picked, tap))
 
     for wire in cable.wires:
         from_, to = wire.ends
         own = wire.data.get("color")
-        color = colors.of_wire(own, wire.type)
+        tap = is_tap(taps, wire.net, wire.type, from_, to)
+        color = colors.of_wire(own, wire.type, tap)
         picked = own is None and colors.is_picked(wire.type)
         wires.append(WireRow(from_, None, to, None, wire_label(model.settings, wire.net, wire.type),
-                             wire.type, color, picked))
+                             wire.type, color, picked, tap))
 
     return CableTable(cable.name, cable.file, cable.ends, cable.data.get("part"),
                       cable.data.get("note"), wires)
@@ -218,22 +229,24 @@ def cable_table(model, colors, cable):
 
 def color_legend(colors, cables):
     """Every type on a wire with its type's color, sorted. A chain is one row,
-    since all its outs share a color unless the project chose otherwise. A
-    wire's own color is on its row, not here."""
+    since all its outs share a color unless the project chose otherwise, and
+    one more for its taps when it has any. A wire's own color is on its row,
+    not here."""
     rows = []
     seen = set()
     for cable in cables:
         for wire in cable.wires:
             type_ = wire.type
-            color = colors.of_type(type_)
+            color = colors.of_type(type_, wire.tap)
+            tap = wire.tap and color != colors.of_type(type_)   # a chosen color is the same on taps
             word, _ = split_type(type_)
             if colors.is_word_of("chain", word) and colors.is_picked(type_):
                 type_ = f"{word}:*"
-            if type_ in seen or color is None:
+            if (type_, tap) in seen or color is None:
                 continue
-            seen.add(type_)
-            rows.append(ColorRow(type_, color, colors.is_picked(wire.type)))
-    return sorted(rows, key=lambda row: legend_order(row.type))
+            seen.add((type_, tap))
+            rows.append(ColorRow(type_, color, colors.is_picked(wire.type), tap))
+    return sorted(rows, key=lambda row: (legend_order(row.type), row.tap))
 
 
 def legend_order(type_):

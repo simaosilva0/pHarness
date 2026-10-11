@@ -37,6 +37,7 @@ FAMILIES = [
 ]
 CAN_SECOND = "green"   # CAN low, by convention
 CHAIN = "brown"        # a chain reads as one line
+TAP = "brown/white"    # a wire that only taps a chain, as a branch of that line
 HV = "orange"          # high voltage, at a glance
 
 
@@ -103,22 +104,24 @@ class Colors:
                 taken.add(color)
         return picked
 
-    def of_type(self, type_):
-        """The color of a type's wires, or None when it has no colored wire."""
+    def of_type(self, type_, tap=False):
+        """The color of a type's wires, or None when it has no colored wire.
+        A `tap` is a chain wire that only taps the chain: it gets the tap color
+        where the palette has stripes."""
         if type_ in self.chosen:
             return self.chosen[type_]
         if is_hv(type_):
             return HV
         word, _ = split_type(type_)
         if self.is_word_of("chain", word):
-            return CHAIN
+            return TAP if tap and self.settings.palette != "solid" else CHAIN
         return self.picked.get(type_)
 
-    def of_wire(self, own, type_):
+    def of_wire(self, own, type_, tap=False):
         """A wire's own color, else its type's."""
         if own is not None:
             return own
-        return self.of_type(type_)
+        return self.of_type(type_, tap)
 
     def is_picked(self, type_):
         """Whether the tool picked the type's color, rather than the project."""

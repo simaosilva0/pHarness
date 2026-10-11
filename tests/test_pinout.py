@@ -184,3 +184,63 @@ def test_the_legend_has_each_type_once_and_a_chain_as_one(project):
     assert "chain:*" in types
     assert not any(t.startswith("chain:s") for t in types)
     assert "shield" not in types
+
+
+# --- chain taps --------------------------------------------------------------------
+
+REARHUB = "boxes/rearhub.yaml"
+CONFIG = "config.yaml"
+HOOP_LINK = """cable: Hoop Link
+ends: [Left Shutdown Button, Right Shutdown Button]
+wires:
+  - {net: sdc, type: chain:s0, from: Left Shutdown Button, to: Right Shutdown Button}
+"""
+
+
+def tap_s0(project):
+    """s0 runs from button to button in its own cable; the RearHub only senses
+    it, with a wire to the left button: that wire is a tap."""
+    project.write("cables/hoop_link.yaml", HOOP_LINK)
+    project.replace(REARHUB, "{pin: '2', net: sdc, type: chain:s0, to: Left Shutdown Button}",
+                    "{pin: '2', net: sdc, type: chain:s0, to: Left Shutdown Button, at: vcu:in0}")
+    project.replace(REARHUB, "{pin: '3', net: sdc, type: chain:s0, to: Right Shutdown Button}",
+                    "{pin: '3', type: spare}")
+    assert project.broken() == []
+
+
+def test_a_wire_that_taps_a_chain(project):
+    tap_s0(project)
+    pinout = pinout_of(project)
+    sense = row(pinout, "RearHub", "sdc", "2")
+    assert (sense.color, sense.color_picked) == ("brown/white", True)
+    loop = cable(pinout, "Hoop Link").wires[0]
+    assert (loop.color, loop.tap) == ("brown", False)
+    tap = [wire for wire in cable(pinout, "Main Hoop").wires if wire.start == "RearHub.sdc.2"][0]
+    assert (tap.color, tap.tap) == ("brown/white", True)
+
+
+def test_the_legend_has_the_tap_color(project):
+    tap_s0(project)
+    legend = [(one.type, one.color, one.tap) for one in pinout_of(project).colors]
+    assert ("chain:*", "brown", False) in legend
+    assert ("chain:*", "brown/white", True) in legend
+
+
+def test_without_stripes_a_tap_is_brown(project):
+    tap_s0(project)
+    project.replace(CONFIG, "palette: striped\n", "palette: solid\n")
+    pinout_of_solid = pinout_of(project)
+    assert row(pinout_of_solid, "RearHub", "sdc", "2").color == "brown"
+
+
+def test_a_chosen_chain_color_is_on_its_taps_too(project):
+    tap_s0(project)
+    project.replace(CONFIG, "color: auto\n", "color: fill\ncolors:\n  chain:s0: white\n")
+    pinout = pinout_of(project)
+    assert row(pinout, "RearHub", "sdc", "2").color == "white"
+    assert cable(pinout, "Hoop Link").wires[0].color == "white"
+
+
+def test_kestrel_has_no_taps(project):
+    for one in pinout_of(project).cables:
+        assert not any(wire.tap for wire in one.wires)

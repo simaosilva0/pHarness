@@ -431,7 +431,7 @@ project has not given to a type in `colors`:
 | `spi` | `violet` | after `lin`, so `violet/white` on |
 | `serial` | `grey` | |
 | `ethernet` | `green` | after `can`, so `green/white` on |
-| `chain` | `brown` | every type the same: a chain reads as one line |
+| `chain` | `brown` | every type the same: a chain reads as one line; its taps `brown/white` |
 
 With the words at the top, `power:24V` is `red`, `power:12V` `red/white` and
 `power:5V` `red/black`; `analog` `white`, `digital` `white/black`; `can:H`
@@ -440,6 +440,15 @@ With the words at the top, `power:24V` is `red`, `power:12V` `red/white` and
 Under `solid` there are no stripes, so a type whose family has no free color
 left takes its kind's base: every supply is `red`. The defaults never use the
 shades; under `shaded` they are only there for the project to write.
+
+A chain's wires that only tap it are `brown/white`: a sense line from a box
+to a point on the loop, branching off where the loop runs. The tool follows
+each stretch from its node to the next (`chain-order`); a branch that ends
+anywhere else is a tap, and the rest carries the loop. Under `solid` a tap is
+`brown` like the loop. A color the project gives a chain type in `colors` is on
+its taps too; a pin's own `color` sets one wire, such as a tap in a team's own
+tap color (`light blue` under `shaded`). The legend lists the tap color on a row
+of its own.
 
 `hv` is always `orange`, in every kind, and nothing else is: high voltage must
 be told apart at a glance. Orange is the base color: `orange/black` is orange,
