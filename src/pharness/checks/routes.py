@@ -1,6 +1,7 @@
 """Conductors and routes: what the pins add up to across boxes (CONFIG.md: the
 start, Labels, Chains; STRUCT.md: car.yaml, boxes)."""
 
+from ..project.chains import Stretch
 from ..project.labels import split_type, wire_label
 
 
@@ -16,6 +17,7 @@ def check_routes(model, nets, report):
     check_ends(model, report)
     check_devices_used(model, report)
     check_chain_outs(model, report)
+    check_chain_order(model, report)
 
 
 # --- conductors ----------------------------------------------------------------
@@ -173,7 +175,7 @@ def devices_used(model):
 def check_chain_outs(model, report):
     """chain-out-used: every out is on a pin or a listed wire, unless its node
     and the next node are in the same box. Whether the loop runs from node to
-    node waits for step 10."""
+    node is chain-order."""
     for chain, nodes in model.car.chains.items():
         for i, node in enumerate(nodes):
             if "out" not in node.data:
@@ -197,3 +199,59 @@ def boxes_known(model, node, following):
         if one is not None and one.box is not None and not model.is_box(one.box):
             return False
     return True
+
+
+def check_chain_order(model, report):
+    """chain-order: the conductor leaving each node, followed along its wires,
+    reaches that node and the next one in one piece, and no other node of the
+    chain that is a device. Skipped where another rule already says what is
+    wrong: an unknown node, an out on no pin, an out written twice, a `to` that
+    goes nowhere. A stretch from one device straight to another is only in a
+    cable's list of wires, so nothing is judged until there is a `cables/`
+    folder."""
+    for chain, nodes in model.car.chains.items():
+        outs = [node.out for node in nodes]
+        for i, node in enumerate(nodes):
+            following = nodes[i + 1] if i + 1 < len(nodes) else None
+            if not model.has_cables:
+                report.skip("chain-order", node.key)
+                continue
+            if "out" not in node.data or outs.count(node.out) > 1:
+                report.skip("chain-order", node.key)   # chain-fields or chain-out-unique says so
+                continue
+            if not all(node_known(model, one) for one in [node, following] if one is not None):
+                report.skip("chain-order", node.key)   # chain-node says so
+                continue
+            if following is not None and node.box is not None and node.box == following.box:
+                continue   # it runs inside the box, on no pin
+            stretch = Stretch(model, chain, node.type)
+            if stretch.empty or stretch.broken:
+                report.skip("chain-order", node.key)   # chain-out-used, to-known or to-reaches says so
+                continue
+            others = [one.name for one in nodes
+                      if one is not node and one is not following and one.box is None]
+            reasons = stretch_problems(stretch, node, following, others)
+            ends = f"from {node.name} to {following.name}" if following else f"from {node.name}"
+            report.check("chain-order", not reasons, node.where, f"{ends}: {'; '.join(reasons)}", node.key)
+
+
+def node_known(model, node):
+    """Whether the node is where car.yaml says: a box that exists, or a device."""
+    if node.box is not None:
+        return model.is_box(node.box)
+    return model.is_device(node.name)
+
+
+def stretch_problems(stretch, node, following, others):
+    """What is wrong with one stretch of a chain, as a list of reasons."""
+    reasons = []
+    ends = [one for one in [node, following] if one is not None]
+    missed = [one.name for one in ends if not stretch.reaches(one)]
+    for name in missed:
+        reasons.append(f"does not reach {name}")
+    if not missed and len(ends) == 2 and not stretch.joins(*ends):
+        reasons.append(f"{node.name} and {following.name} are on two pieces of it, with no wire between")
+    wrong = [name for name in others if name in stretch.devices]
+    if wrong:
+        reasons.append(f"reaches {', '.join(wrong)}, another node of the chain")
+    return reasons

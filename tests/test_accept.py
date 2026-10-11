@@ -12,7 +12,7 @@ NOSE = "boxes/nose.yaml"
 
 
 def accept(project, rule, entry, reason="known, kept on purpose"):
-    """Accept one entry under one rule; the entry is on config.yaml:45."""
+    """Accept one entry under one rule; the entry is on config.yaml:53."""
     project.replace(CONFIG, "accept: {}\n", f"accept:\n  {rule}:\n    {entry}: {reason}\n")
 
 
@@ -36,18 +36,18 @@ def test_an_accepted_entry_is_not_reported(project):
 
 def test_an_accepted_entry_that_does_not_exist(project):
     accept(project, "to-reaches", "Nose.harness.Z")
-    assert project.broken() == [("accept-known", "config.yaml:52")]
+    assert project.broken() == [("accept-known", "config.yaml:53")]
 
 
 def test_an_accepted_entry_that_no_longer_breaks_its_rule(project):
     accept(project, "to-reaches", "Nose.harness.A")
-    assert problems(project) == [("accept-used", "config.yaml:52", "warn")]
+    assert problems(project) == [("accept-used", "config.yaml:53", "warn")]
 
 
 def test_an_accepted_pin_its_rule_is_not_about(project):
     # pedals 1 goes to a device: to-reaches is about pins going to a box.
     accept(project, "to-reaches", "Nose.pedals.1")
-    assert problems(project) == [("accept-used", "config.yaml:52", "warn")]
+    assert problems(project) == [("accept-used", "config.yaml:53", "warn")]
 
 
 def test_an_accepted_entry_under_a_rule_turned_off(project):

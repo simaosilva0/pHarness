@@ -68,6 +68,7 @@ RULES = {
     "chain-out-unique": ERROR,
     "chain-type": ERROR,
     "chain-out-used": Rule("warn", True),
+    "chain-order": Rule("error", True),
 
     # CONFIG.md, Boxes, connectors, devices, boards, cables
     "box-style": ERROR,

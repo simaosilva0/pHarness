@@ -1,9 +1,14 @@
 """Conductors and routes: what the pins add up to across boxes (CONFIG.md: the
 start, Labels, Chains; STRUCT.md: car.yaml, boxes)."""
 
+import re
+import shutil
+
 CAR = "car.yaml"
 NOSE = "boxes/nose.yaml"
 BATTERY = "boxes/battery.yaml"
+REARHUB = "boxes/rearhub.yaml"
+BULKHEAD = "boxes/bulkhead.yaml"
 
 
 def problems(project):
@@ -98,7 +103,52 @@ def test_a_device_nothing_uses(project):
 
 def test_a_chain_out_on_no_pin(project):
     project.replace(CAR, "    - {node: TSMS, out: s8}\n", "    - {node: TSMS, out: s8}\n    - {node: Brake Light, out: s9}\n")
-    assert problems(project) == [("chain-out-used", "car.yaml:60", "warn", "sdc chain:s9")]
+    # s8 now has to reach Brake Light too.
+    assert problems(project) == [("chain-order", "car.yaml:59", "error", "sdc chain:s8"),
+                                 ("chain-out-used", "car.yaml:60", "warn", "sdc chain:s9")]
+
+
+def test_a_chain_out_to_the_wrong_node(project):
+    # s0 runs from the left button to the right one, not to TSMS.
+    project.replace(REARHUB, "{pin: '3', net: sdc, type: chain:s0, to: Right Shutdown Button}",
+                    "{pin: '3', net: sdc, type: chain:s0, to: TSMS}")
+    assert problems(project) == [("chain-order", "car.yaml:51", "error", "sdc chain:s0")]
+
+
+def test_a_chain_out_in_two_pieces(project):
+    # No wire between the RearHub and the Bulkhead: s1 leaves the right button
+    # and reaches the cockpit button, but the two are not joined.
+    project.replace(REARHUB, "{pin: J, net: sdc, type: chain:s1, to: Bulkhead, cable: Rear Signal, at: pass}",
+                    "{pin: J, type: spare}")
+    project.replace(BULKHEAD, "{pin: J, net: sdc, type: chain:s1, to: RearHub, cable: Rear Signal, at: pass}",
+                    "{pin: J, type: spare}")
+    project.replace(REARHUB, "type: chain:s1, to: Right Shutdown Button, at: pass}",
+                    "type: chain:s1, to: Right Shutdown Button}")
+    project.replace(BULKHEAD, "type: chain:s1, to: Cockpit, at: pass}", "type: chain:s1, to: Cockpit}")
+    assert problems(project) == [("chain-order", "car.yaml:52", "error", "sdc chain:s1")]
+
+
+def test_a_chain_out_that_misses_its_node_in_a_box(project):
+    # The BSPD moves to the Nose: s4 lands there, but s5 never does.
+    project.replace(CAR, "{node: BSPD, out: s5, box: RearHub}", "{node: BSPD, out: s5, box: Nose}")
+    assert problems(project) == [("chain-order", "car.yaml:56", "error", "sdc chain:s5")]
+
+
+def test_without_cables_the_chain_order_waits(project):
+    # A stretch from one device to another is only written in a cable.
+    shutil.rmtree(project.root / "cables")
+    for path in (project.root / "boxes").glob("*.yaml"):
+        text = re.sub(r"\n    cable: [^\n]*", "", path.read_text())
+        path.write_text(re.sub(r", cable: [^,}]*", "", text))
+    project.replace(REARHUB, "{pin: '3', net: sdc, type: chain:s0, to: Right Shutdown Button}",
+                    "{pin: '3', net: sdc, type: chain:s0, to: TSMS}")
+    assert project.broken() == []
+
+
+def test_a_chain_out_with_a_broken_to_is_not_followed(project):
+    project.replace(NOSE, "{pin: '1', net: sdc, type: chain:s4, to: BOTS}",
+                    "{pin: '1', net: sdc, type: chain:s4, to: Bots}")
+    assert "chain-order" not in [rule for rule, _ in project.broken()]
 
 
 def test_a_chain_out_inside_one_box(project):

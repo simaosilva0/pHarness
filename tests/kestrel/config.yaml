@@ -36,6 +36,7 @@ rules:
   conductor-one-end: warn
   unfitted-note: error
   chain-out-used: warn
+  chain-order: error
   ends-match: error
   bus-internal: error
   device-used: warn

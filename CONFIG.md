@@ -319,10 +319,7 @@ type. A sense line named by its slot on a board (`DATA_28`) is not a name.
 | `chain-out-unique` | every `out` appears once in its chain | `D0`, `D1`, `D2` | two nodes with `out: D5` | error | |
 | `chain-type` | a pin on a chain is `chain:<out>` with an `out` of that chain, and `chain` types are only on chains | `SDC` `chain:D5` | `SDC` `power:24V`, `SDC` `chain:D99`, `LVS` `chain:D0` | error | |
 | `chain-out-used` | every `out` is on at least one pin, unless its node and the next node are in the same box | `D5` on Accumulator Data 12; `D6` on no pin, IMD and AMS both in the Accumulator | `D3` on no pin | warn | yes |
-
-Whether the loop really runs from each node to the next is checked along the
-cables (step 10): a stretch from one device straight to another, such as LVMS to
-ASMS, is in no box file, only the boxes' taps on it are.
+| `chain-order` | the conductor leaving each node, followed along its wires, reaches that node and the next one in one piece, and no other node of the chain that is a device. A node in a box is reached by a pin there that is not `pass`. Waits for a `cables/` folder: a stretch from one device straight to another is only written in a cable | `D0` from LVMS to ASMS, a wire listed in a cable | `D0` going to RES; `D1` in the Front Box and in the Rear Box with no wire between | error | yes |
 
 ## Boxes, connectors, devices, boards, cables
 
@@ -468,6 +465,7 @@ rules:
   conductor-one-end: error
   unfitted-note: error
   chain-out-used: warn
+  chain-order: error
   ends-match: error
   bus-internal: error
   device-used: warn
@@ -528,7 +526,7 @@ is not called stale.
 |---|---|---|
 | `to-reaches`, `at-pass`, `unfitted-note`, `pin-order`, `to-cabled` | a pin, `<box>.<connector>.<pin>` | `Accumulator.Data.11` |
 | `conductor-one-end` | a conductor, `<net> <type>` | `CAN_BAT can:L` |
-| `chain-out-used` | a chain out, `<chain> chain:<out>` | `SDC chain:D3` |
+| `chain-out-used`, `chain-order` | a chain out, `<chain> chain:<out>` | `SDC chain:D3` |
 | `ends-match`, `bus-internal` | a bus or link | `CAN_X1` |
 | `hv-orange` | a type, or a pin | `hv:P`, `Accumulator.HV.+` |
 | `cable-used` | a cable | `Spare Loom` |

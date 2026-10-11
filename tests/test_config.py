@@ -7,7 +7,7 @@ CONFIG = "config.yaml"
 
 def test_an_unknown_field(project):
     project.add(CONFIG, "colour: auto\n")
-    assert project.broken() == [("field-known", "config.yaml:51")]
+    assert project.broken() == [("field-known", "config.yaml:52")]
 
 
 def test_a_setting_left_out(project):
@@ -127,26 +127,26 @@ def test_rule_levels(project):
 
 def test_a_rule_that_does_not_exist(project):
     project.replace(CONFIG, "  pin-order: warn\n", "  pin-order: warn\n  pin-orders: off\n")
-    assert project.broken() == [("rule-known", "config.yaml:45")]
+    assert project.broken() == [("rule-known", "config.yaml:46")]
 
 
 def test_a_level_that_does_not_exist(project):
     project.replace(CONFIG, "  pin-order: warn\n", "  pin-order: pass\n")
-    assert project.broken() == [("rule-level", "config.yaml:44")]
+    assert project.broken() == [("rule-level", "config.yaml:45")]
 
 
 def test_a_fixed_rule_cannot_change(project):
     project.replace(CONFIG, "  pin-order: warn\n", "  pin-order: warn\n  net-style: warn\n")
-    assert project.broken() == [("rule-fixed", "config.yaml:45")]
+    assert project.broken() == [("rule-fixed", "config.yaml:46")]
 
 
 # --- accepted entries ----------------------------------------------------------
 
 def test_an_accepted_entry_needs_a_reason(project):
     project.replace(CONFIG, "accept: {}\n", "accept:\n  to-reaches:\n    Nose.harness.A: ''\n")
-    assert ("accept-reason", "config.yaml:52") in project.broken()
+    assert ("accept-reason", "config.yaml:53") in project.broken()
 
 
 def test_a_fixed_rule_cannot_be_accepted(project):
     project.replace(CONFIG, "accept: {}\n", "accept:\n  net-style:\n    foo: no reason needed\n")
-    assert project.broken() == [("rule-fixed", "config.yaml:51")]
+    assert project.broken() == [("rule-fixed", "config.yaml:52")]

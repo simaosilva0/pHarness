@@ -42,6 +42,7 @@ def entries_by_rule(model):
         "pin-order": pins,
         "conductor-one-end": conductors,
         "chain-out-used": outs,
+        "chain-order": outs,
         "ends-match": buses + links,
         "bus-internal": buses,
         "device-used": devices,
