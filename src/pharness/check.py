@@ -5,6 +5,7 @@ from .checks.boxes import check_boxes
 from .checks.car import check_car
 from .checks.config import check_config
 from .checks.names import NetChecks
+from .checks.routes import check_routes
 from .project.load import load_project
 from .project.read import read_model
 from .rules.report import Report
@@ -23,4 +24,5 @@ def check_project(root):
 
     check_car(model, nets, report)
     check_boxes(model, nets, report)
+    check_routes(model, nets, report)
     return report
