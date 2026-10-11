@@ -1,4 +1,7 @@
-"""The pinout as one HTML page: offline, no scripts, the styles inline.
+"""The pinout as one HTML page: offline, no scripts, the styles inline. Four
+tabs: boxes, cables, warnings and config (the wire colors). A tab is shown
+when it, or something in it, is the page's target, so every link opens the tab
+it points into; with no target the boxes are shown.
 
 Every value from the project goes through text(), which escapes it.
 """
@@ -87,11 +90,28 @@ th { background: var(--head); font-weight: 600; white-space: nowrap; }
 tr.unused td { color: var(--unused); }
 tr.warned td { background: var(--warn-bg); }
 .warning { color: var(--warn-fg); }
-section.warnings { margin-top: 1.5rem; padding: 0.6rem 1rem; background: var(--warn-bg); color: var(--warn-fg); }
-section.warnings ul { margin: 0.4rem 0 0; padding-left: 1.2rem; }
+ul.warnings { margin: 0.4rem 0 0; padding: 0.6rem 1rem 0.6rem 2.2rem; background: var(--warn-bg); color: var(--warn-fg); }
+nav.tabs { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 1rem; border-bottom: 2px solid var(--line);
+           position: sticky; top: 0; z-index: 1; background: var(--bg); padding-top: 0.5rem; }
+[id] { scroll-margin-top: 3.5rem; }
+nav.tabs a { padding: 0.4rem 0.9rem; border: 1px solid transparent; border-bottom: none;
+             border-radius: 4px 4px 0 0; color: var(--muted); }
+nav.tabs a:hover { text-decoration: none; color: var(--fg); }
+section.panel { display: none; }
+section.panel:target, section.panel:has(:target),
+body:not(:has(section.panel:target, section.panel :target)) #boxes { display: block; }
+body:has(#boxes:target, #boxes :target) nav.tabs a[href="#boxes"],
+body:has(#cables:target, #cables :target) nav.tabs a[href="#cables"],
+body:has(#config:target, #config :target) nav.tabs a[href="#config"],
+body:has(#warnings:target, #warnings :target) nav.tabs a[href="#warnings"],
+body:not(:has(section.panel:target, section.panel :target)) nav.tabs a[href="#boxes"] {
+  color: var(--fg); background: var(--head); border-color: var(--line); font-weight: 600;
+}
 @media print {
   body { max-width: none; padding: 0; font-size: 11px; }
-  section.box, section.cables, section.cable { break-before: page; }
+  nav.tabs { display: none; }
+  section.panel { display: block !important; }
+  section.box, section.panel, section.cable { break-before: page; }
   .connector { break-inside: avoid; }
   a { color: inherit; }
 }
@@ -101,6 +121,14 @@ section.warnings ul { margin: 0.4rem 0 0; padding-left: 1.2rem; }
 def render_page(pinout):
     """The whole page, as text."""
     anchors = section_anchors(pinout)
+    tabs = [("boxes", f"Boxes ({len(pinout.boxes)})", render_boxes(pinout, anchors))]
+    if pinout.cables:
+        tabs.append(("cables", f"Cables ({len(pinout.cables)})", render_cables(pinout, anchors)))
+    tabs.append(("warnings", f"Warnings ({len(pinout.warnings)})", render_warnings(pinout, anchors)))
+    if pinout.colors:
+        tabs.append(("config", "Config", render_legend(pinout)))
+
+    links = "".join(f'<a href="#{name}">{title}</a>' for name, title, _ in tabs)
     parts = [
         "<!doctype html>",
         '<html lang="en">',
@@ -112,13 +140,10 @@ def render_page(pinout):
         "</head>",
         "<body>",
         render_header(pinout),
-        render_warnings(pinout, anchors),
-        render_index(pinout, anchors),
+        f'<nav class="tabs">{links}</nav>',
     ]
-    for box in pinout.boxes:
-        parts.append(render_box(box, anchors))
-    if pinout.cables:
-        parts.append(render_cables(pinout, anchors))
+    for name, _, content in tabs:
+        parts.append(f'<section class="panel" id="{name}">\n{content}\n</section>')
     parts.append("</body>")
     parts.append("</html>")
     return "\n".join(parts) + "\n"
@@ -140,7 +165,7 @@ def render_header(pinout):
 def render_warnings(pinout, anchors):
     """Every warning, each linked to its pin, or to its box when it is on no pin."""
     if not pinout.warnings:
-        return ""
+        return '<h2>Warnings</h2><p class="muted">No warnings.</p>'
     pin_lines = pin_wheres(pinout)
     items = []
     for warning in pinout.warnings:
@@ -151,8 +176,7 @@ def render_warnings(pinout, anchors):
         items.append(f"<li>{label}</li>")
 
     title = count(len(pinout.warnings), "warning", "warnings")
-    return (f'<section class="warnings"><strong>{title}</strong>'
-            f"<ul>{''.join(items)}</ul></section>")
+    return f'<h2>{title}</h2><ul class="warnings">{"".join(items)}</ul>'
 
 
 def warning_target(warning, pin_lines, anchors):
@@ -166,6 +190,14 @@ def warning_target(warning, pin_lines, anchors):
     return None
 
 
+def render_boxes(pinout, anchors):
+    """The boxes: an index, then every box's connectors and pins."""
+    parts = [render_index(pinout, anchors)]
+    for box in pinout.boxes:
+        parts.append(render_box(box, anchors))
+    return "\n".join(parts)
+
+
 def render_index(pinout, anchors):
     rows = []
     for box in pinout.boxes:
@@ -176,8 +208,8 @@ def render_index(pinout, anchors):
         rows.append(f"<tr><td>{name}</td><td class=\"mono\">{boards}</td>"
                     f"<td>{connectors}</td><td>{pins}</td></tr>")
     head = "<tr><th>Box</th><th>Boards</th><th>Connectors</th><th>Pins</th></tr>"
-    return (f"<nav><h2>Boxes</h2><div class=\"scroll\"><table>{head}{''.join(rows)}"
-            "</table></div></nav>")
+    return (f"<h2>Boxes</h2><div class=\"scroll\"><table>{head}{''.join(rows)}"
+            "</table></div>")
 
 
 # --- one box ------------------------------------------------------------------------
@@ -292,7 +324,7 @@ def render_note(row):
 # --- cables ---------------------------------------------------------------------------
 
 def render_cables(pinout, anchors):
-    """The cables: an index, the colors of the types, then every cable's wires."""
+    """The cables: an index, then every cable's wires."""
     rows = []
     for cable in pinout.cables:
         name = f'<a href="#{anchors["cable"][cable.name]}">{text(cable.name)}</a>'
@@ -300,10 +332,8 @@ def render_cables(pinout, anchors):
         rows.append(f"<tr><td>{name}</td><td>{ends}</td><td>{len(cable.wires)}</td>"
                     f"<td>{text(cable.note)}</td></tr>")
     head = "<tr><th>Cable</th><th>Ends</th><th>Wires</th><th>Note</th></tr>"
-    parts = ['<section class="cables" id="cables">', "<h2>Cables</h2>",
-             f'<div class="scroll"><table>{head}{"".join(rows)}</table></div>',
-             render_legend(pinout)]
-    parts.append("</section>")
+    parts = ["<h2>Cables</h2>",
+             f'<div class="scroll"><table>{head}{"".join(rows)}</table></div>']
     for cable in pinout.cables:
         parts.append(render_cable(cable, anchors))
     return "\n".join(parts)
@@ -318,7 +348,7 @@ def render_legend(pinout):
                    f"<td>{'picked by pHarness' if row.picked else 'config.yaml'}</td></tr>"
                    for row in pinout.colors)
     head = "<tr><th>Type</th><th>Color</th><th>From</th></tr>"
-    return ("<h3>Colors</h3>"
+    return ("<h2>Wire colors</h2>"
             '<p class="muted">Colors in italics were picked by the tool; the others are '
             "written in config.yaml, or on the pin or wire.</p>"
             f'<div class="scroll"><table>{head}{rows}</table></div>')

@@ -59,14 +59,25 @@ def test_text_is_escaped(project):
 def test_a_warning_is_listed_and_marked_on_its_pin(project):
     project.replace(NOSE, SPARE, "{pin: '2', net: horn, type: digital}")
     page = page_of(project)
-    assert "<strong>1 warning</strong>" in page
+    assert "<h2>1 warning</h2>" in page
+    assert '<a href="#warnings">Warnings (1)</a>' in page
     assert '<a href="#boxes-nose-yaml-43">' in page
     assert '<tr id="boxes-nose-yaml-43" class="warned">' in page
     assert '<span class="warning">conductor-one-end: horn digital: ' in page
 
 
 def test_no_warnings_no_list(project):
-    assert 'class="warnings"' not in page_of(project)
+    page = page_of(project)
+    assert 'class="warnings"' not in page
+    assert "No warnings." in page
+
+
+def test_the_page_has_four_tabs(project):
+    page = page_of(project)
+    assert ('<nav class="tabs"><a href="#boxes">Boxes (7)</a><a href="#cables">Cables (28)</a>'
+            '<a href="#warnings">Warnings (0)</a><a href="#config">Config</a></nav>') in page
+    for name in ["boxes", "cables", "config", "warnings"]:
+        assert f'<section class="panel" id="{name}">' in page
 
 
 # --- pharness build ----------------------------------------------------------------
@@ -139,4 +150,5 @@ def test_without_cables_no_cable_section(project):
         path.write_text(re.sub(r", cable: [^,}]*", "", text))
     page = page_of(project)
     assert 'id="cables"' not in page
+    assert 'id="config"' not in page
     assert "216 pins</div>" in page
