@@ -28,6 +28,7 @@ style:
   connector: title
   device: title
   board: kebab
+  cable: title
 
 sides: [LEFT, RIGHT, FRONT, REAR, FL, FR, RL, RR]
 
@@ -47,6 +48,9 @@ types:
   ethernet: {types: [ethernet], qualifiers: [1, 2, 3, 4, 5, 6, 7, 8]}
   chain:    {types: [chain]}
   no_net:   {types: [spare, unfitted]}
+
+palette: striped
+color: auto
 
 rules:
   conductor-one-end: warn
@@ -78,7 +82,7 @@ person can check them.
 ## Styles
 
 Every kind of name is written in one style, set under `style`, which lists all
-five. The default is what a new project starts with:
+six. The default is what a new project starts with:
 
 | kind | default | example |
 |---|---|---|
@@ -87,6 +91,7 @@ five. The default is what a new project starts with:
 | `connector` | `title` | `Rear Supply` |
 | `device` | `title` | `Sus Pot FL`, `Cylinder Detection 0` |
 | `board` | `kebab` | `te`, `suspot-front`, `steering-wheel` |
+| `cable` | `title` | `Pedals`, `Shutdown Buttons` |
 
 The styles:
 
@@ -113,7 +118,7 @@ car's name.
 
 | rule | passes when | ok | wrong | level | adjustable |
 |---|---|---|---|---|---|
-| `style-kind` | every key under `style` is `net`, `box`, `connector`, `device` or `board` | `box: title` | `wire: snake` | error | |
+| `style-kind` | every key under `style` is `net`, `box`, `connector`, `device`, `board` or `cable` | `box: title` | `wire: snake` | error | |
 | `style-name` | every style is one of the seven above | `net: kebab` | `net: lower` | error | |
 | `style-net` | the `net` style is `upper_snake`, `snake`, `upper_kebab` or `kebab` | `net: snake` | `net: pascal` | error | |
 | `net-words-case` | every side, label, qualifier and chain `out` is one word in the net's case: letters and digits, no separator; digits always pass | `LEFT`, `5V`, `8`, `D5` | `Left`, `5v`, `d5`, `D_5` | error | |
@@ -315,11 +320,11 @@ type. A sense line named by its slot on a board (`DATA_28`) is not a name.
 | `chain-type` | a pin on a chain is `chain:<out>` with an `out` of that chain, and `chain` types are only on chains | `SDC` `chain:D5` | `SDC` `power:24V`, `SDC` `chain:D99`, `LVS` `chain:D0` | error | |
 | `chain-out-used` | every `out` is on at least one pin, unless its node and the next node are in the same box | `D5` on Accumulator Data 12; `D6` on no pin, IMD and AMS both in the Accumulator | `D3` on no pin | warn | yes |
 
-Whether the loop really runs from each node to the next is checked once cables
-exist (step 9): a stretch from one device straight to another, such as LVMS to
+Whether the loop really runs from each node to the next is checked along the
+cables (step 10): a stretch from one device straight to another, such as LVMS to
 ASMS, is in no box file, only the boxes' taps on it are.
 
-## Boxes, connectors, devices, boards
+## Boxes, connectors, devices, boards, cables
 
 - **Box**: in the `box` style. A box is never named like a board inside it,
   whatever their styles: the box holding the `pdu` board is `PDU Box`.
@@ -331,6 +336,7 @@ ASMS, is in no box file, only the boxes' taps on it are.
   connects to or does, not by its part number: `Rear Supply`, `CAN Analog`. The
   part number goes in `part:` (`ASL006-05SA (yellow)` is a part, not a name).
 - **Device**: in the `device` style: `Sus Pot FL`, `Brake Light`.
+- **Cable**: in the `cable` style: `Pedals`, `Left Cooling`.
 - **Pin**: exactly as printed on the connector, case matters (`a` and `A` are two
   pins on a Deutsch AS).
 
@@ -342,6 +348,115 @@ ASMS, is in no box file, only the boxes' taps on it are.
 | `board-style` | the board is in the `board` style | `te`, `suspot-front` | `TE`, `suspot_front` | error | |
 | `box-not-board` | the box is not named like a board in it, ignoring case and separators | `PDU Box` holding `pdu` | `PDU` holding `pdu` | error | |
 | `box-not-device` | no name is both a box and a device | box `NPC`, device `TSAL` | `RES` in `boxes/` and under `devices` | error | |
+| `cable-style` | the cable is in the `cable` style | `Left Cooling`, `BOTS Lead` | `left cooling`, `left_cooling` | error | |
+
+## Colors
+
+Every wire in a cable has a color. Three settings decide it: `palette`, the
+colors the project may use; `color`, where a type's color comes from; and
+`colors`, the project's own color per type:
+
+```yaml
+palette: striped
+color: fill
+colors:
+  ground: black
+  power:24V: red
+  can:H: yellow
+  can:L: green
+```
+
+### Palette
+
+The palette is the set of color names the project may write. Each one holds
+the one before it:
+
+| `palette` | the colors | for |
+|---|---|---|
+| `solid` | the twelve of IEC 60757 | a loom of plain wires only |
+| `striped` (default) | the twelve, and any two of them as `<base>/<stripe>` | most looms: the industry standard |
+| `shaded` | the above, and six shades: `light blue`, `dark blue`, `light green`, `dark green`, `light grey`, `beige`, also with stripes | a team whose wire stock has them |
+
+The twelve:
+
+`black`, `brown`, `red`, `orange`, `yellow`, `green`, `blue`, `violet`,
+`grey`, `white`, `pink`, `turquoise`
+
+A stripe is written after the base: `green/yellow` is green with a yellow
+stripe, `yellow/green` yellow with a green one. Base and stripe are never the
+same color (`red/red` is `red`). Shades take stripes like any color
+(`light blue/white`).
+
+Names are written exactly like this: lower case, English, `grey` with an `e`.
+The codes on drawings (`BK`, `GNYE`) are not names here.
+
+### Where a type's color comes from
+
+| `color` | the project writes | a type with no color in `colors` |
+|---|---|---|
+| `auto` | no `colors` | gets its kind's color (Defaults, below) |
+| `fill` | some `colors` | gets its kind's color |
+| `strict` | every type on a wire, but `hv` and chains | is an error |
+
+Under `fill` and `strict` the project picks any colors of its palette, and two
+types may share one: only `hv-orange` cares which colors meet.
+
+A pin's `color` overrides its type's for the wire leaving it, and so does a
+wire's `color` in a cable's list (STRUCT.md, cables). The drawings' legend
+marks the colors the tool picked, so a chosen red and a picked red are never
+confused.
+
+### Defaults
+
+The tool fills in every type the project left out, giving each type a color of
+its own where the palette allows. Each kind is a family: a base color, then the
+base with a stripe, the stripes in this order:
+
+`white`, `black`, `green`, `blue`, `red`, `yellow`, `violet`, `grey`, `brown`,
+`pink`, `turquoise`
+
+The kinds go in the order below, and the types of each kind in the order
+`types` writes them (each word with each of its qualifiers). Every type takes
+the first color of its family that no type before it has taken, and that the
+project has not given to a type in `colors`:
+
+| kind | base | |
+|---|---|---|
+| `supply` | `red` | |
+| `ground` | `black` | |
+| `signal` | `white` | |
+| `pair` | `blue` | |
+| `phase` | `black` | after `ground`, so `black/white` on |
+| `can` | `yellow` | the second type is `green` |
+| `lin` | `violet` | |
+| `rs485` | `turquoise` | |
+| `i2c` | `pink` | |
+| `spi` | `violet` | after `lin`, so `violet/white` on |
+| `serial` | `grey` | |
+| `ethernet` | `green` | after `can`, so `green/white` on |
+| `chain` | `brown` | every type the same: a chain reads as one line |
+
+With the words at the top, `power:24V` is `red`, `power:12V` `red/white` and
+`power:5V` `red/black`; `analog` `white`, `digital` `white/black`; `can:H`
+`yellow`, `can:L` `green`.
+
+Under `solid` there are no stripes, so a type whose family has no free color
+left takes its kind's base: every supply is `red`. The defaults never use the
+shades; under `shaded` they are only there for the project to write.
+
+`hv` is always `orange`, in every kind, and nothing else is: high voltage must
+be told apart at a glance. Orange is the base color: `orange/black` is orange,
+`black/orange` is black with an orange stripe. A `shield` is a bare screen with no color, and a
+`spare` or `unfitted` pin has no wire.
+
+| rule | passes when | ok | wrong | level | adjustable |
+|---|---|---|---|---|---|
+| `palette-name` | `palette` is `solid`, `striped` or `shaded` | `striped` | `extended`, `iec` | error | |
+| `color-mode` | `color` is `auto`, `fill` or `strict` | `fill` | `manual` | error | |
+| `color-name` | every color written is in the palette, a stripe never the same as its base | `red`, `green/yellow`; `light blue` under `shaded` | `Red`, `gray`, `red/red`; `green/yellow` under `solid`; `light blue` under `striped` | error | |
+| `color-type` | every key under `colors` is a type a pin may have (`pin-type`), not a `shield`, `spare` or `unfitted` | `power:24V` | `power`, `shield` | error | |
+| `colors-complete` | under `strict`, every type on a wire has a color, but `hv` (always `orange`) and chains (one color each) | | `strict` with no color for `can:L`, and a `can:L` wire | error | |
+| `hv-orange` | an `hv` wire is `orange`, and no other wire is | `hv:P` `orange` | `hv:P` `red`, `power:24V` `orange` | error | yes |
 
 ## Rule levels
 
@@ -359,6 +474,9 @@ rules:
   to-reaches: error
   at-pass: error
   pin-order: off
+  to-cabled: warn
+  cable-used: warn
+  hv-orange: error
 ```
 
 Fixed rules are never listed, since their level cannot change.
@@ -408,10 +526,12 @@ is not called stale.
 
 | rule | entry | example |
 |---|---|---|
-| `to-reaches`, `at-pass`, `unfitted-note`, `pin-order` | a pin, `<box>.<connector>.<pin>` | `Accumulator.Data.11` |
+| `to-reaches`, `at-pass`, `unfitted-note`, `pin-order`, `to-cabled` | a pin, `<box>.<connector>.<pin>` | `Accumulator.Data.11` |
 | `conductor-one-end` | a conductor, `<net> <type>` | `CAN_BAT can:L` |
 | `chain-out-used` | a chain out, `<chain> chain:<out>` | `SDC chain:D3` |
 | `ends-match`, `bus-internal` | a bus or link | `CAN_X1` |
+| `hv-orange` | a type, or a pin | `hv:P`, `Accumulator.HV.+` |
+| `cable-used` | a cable | `Spare Loom` |
 | `device-used` | a device | `RPI Fan` |
 
 `rule-known` and `rule-fixed` hold for the rules under `accept` too.
