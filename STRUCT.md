@@ -40,7 +40,7 @@ default, so the file shows everything a project can change.
 |---|---|---|
 | `style` | required | the style of every kind of name: `net`, `box`, `connector`, `device`, `board`, `cable` |
 | `sides` | required | the sides a net may start with; `[]` for none |
-| `types` | required | every kind, each with its `types`; a kind not used is `{types: []}` |
+| `types` | required | every kind, each with its `types`; a kind not used is `{types: []}`; `ethernet` with more than two qualifiers also has `pairs` |
 | `rules` | required | every adjustable rule, with its level |
 | `palette` | required | `solid`, `striped` or `shaded`: the colors the project may use |
 | `color` | required | `auto`, `fill` or `strict`: how wires get their colors |
@@ -92,6 +92,7 @@ The boxes of the car are the files in `boxes/`; they are not listed again.
 | `chain-fields` | every chain node has `node` and `out` | `{node: RES, out: D2, box: RES}` | `{node: RES, box: RES}` | error | |
 | `ends-known` | every end of a bus or link is a box or a device | `ends: [Front Box, STA]` | `ends: [Front box]` | error | |
 | `ends-match` | the ends of a bus or link are exactly the boxes it lands in (a pin on it that is not `pass`) and the devices a pin on it goes `to`. A box it only passes through is not an end. An `internal` bus never reaches a connector, so it is not checked | `CAN_BAT` ends `[Accumulator, Front Box]`, both with `CAN_BAT` pins | `SW` in the ends of `CAN_S` with no `CAN_S` pin in `SW` | error | yes |
+| `bus-reach` | every conductor of a bus or link, followed along its wires, reaches every end in one piece. An end is reached as in `ends-match`. On SPI each chip select goes to one device, so there a conductor is only checked to be in one piece. Waits for a `cables/` folder, like `chain-order`; an `internal` bus is not checked | `CAN_BAT` `can:L` from the Accumulator to the Front Box | `CAN_S` `can:H` joining the Rear Box and the Front Box, and the HW boxes on a piece of their own; `can:L` never reaching `SW` | error | yes |
 | `bus-internal` | a bus is `internal` exactly when it has one end and that end is a box | `CAN_AMK` with `ends: [Inverters]` | `internal: true` with two ends | error | yes |
 | `device-used` | every device is a `to`, an end or a chain node | `APPS1` | a device nothing points at | warn | yes |
 
@@ -267,6 +268,7 @@ connector.
 | `wire-color` | the two pins of a wire do not give it two colors | `color: blue` on one pin, or the same on both | `blue` on one, `white` on the other | error | |
 | `cable-used` | every cable has a wire | | a cable no pin is on | warn | yes |
 | `to-cabled` | every pin with a `to` is on a cable, once there is a `cables/` folder | `RearHub.cooling.1` on `Left Cooling` | `Nose.imu.1` on no cable | warn | yes |
+| `pair-cable` | the two wires of a twisted pair going to the same place are on the same cable, so they can be twisted. The pairs are `can`, `rs485`, `ethernet` (each pair of a link, CONFIG.md, Ethernet) and `pair` but `hv` (HV+ and HV- run as two single cables). Reported on the pin with the pair's first qualifier | `RearHub.front.G` `can:h` and `.H` `can:l`, both on `Rear Signal` | the same two pins, one on `Rear Signal` and one on `Rear Power` | warn | yes |
 
 ## Not part of the structure
 

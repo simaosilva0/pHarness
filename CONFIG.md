@@ -45,7 +45,8 @@ types:
   spi:      {types: []}
   serial:   {types: [serial], qualifiers: [TX, RX]}
   shield:   {types: [shield], label: SHIELD}
-  ethernet: {types: [ethernet], qualifiers: [1, 2, 3, 4, 5, 6, 7, 8]}
+  ethernet: {types: [ethernet], qualifiers: [1, 2, 3, 4, 5, 6, 7, 8],
+             pairs: [[1, 2], [3, 6], [4, 5], [7, 8]]}
   chain:    {types: [chain]}
   no_net:   {types: [spare, unfitted]}
 
@@ -280,11 +281,24 @@ to (`ETH_RPI` with `ethernet:3`, not `ETHERNET_RPI_(3)`). A single pair link
 would use `[P, N]`. Like a bus, a link is listed in `car.yaml`. `<LINK>` names the link, not the box it starts from. Nothing
 else starts with `ETH_`: the supply of a switch is named after the switch.
 
+The conductors of a link run in twisted pairs. With two qualifiers they are
+one pair. With more, the kind says which qualifiers make each pair, since RJ45
+numbers do not pair in order (T568: 1-2, 3-6, 4-5, 7-8):
+
+```yaml
+ethernet: {types: [ethernet], qualifiers: [1, 2, 3, 4, 5, 6, 7, 8],
+           pairs: [[1, 2], [3, 6], [4, 5], [7, 8]]}
+```
+
+Each pair is twisted on its own: the two wires of a pair share a cable
+(`pair-cable`, STRUCT.md), but the pairs of one link need not.
+
 | rule | passes when | ok | wrong | level | adjustable |
 |---|---|---|---|---|---|
 | `eth-link-name` | every link in `car.yaml` is `ETH` and at least one more word | `ETH_RPI` | `ETH`, `RPI` | error | |
 | `eth-net` | a net whose first word is `ETH` is a link | `ETH_RPI` | `ETH_SWITCH` | error | |
 | `eth-type` | a pin on a link is `ethernet:<qualifier>`, and `ethernet` types are only on links | `ETH_RPI` `ethernet:3` | `ETH_RPI` `analog`, `ETHERNET_SWITCH` `ethernet:3` | error | |
+| `eth-pairs` | `pairs` is only on `ethernet`, and there exactly when it has more than two qualifiers: each pair two of its qualifiers, each qualifier in one pair | `[[1, 2], [3, 6], [4, 5], [7, 8]]`; no `pairs` with `[P, N]` | no `pairs` with `[1, ..., 8]`; `[[1, 2], [2, 3]]`; `pairs` under `can` | error | |
 
 ## Chains
 
@@ -477,10 +491,12 @@ rules:
   chain-order: error
   ends-match: error
   bus-internal: error
+  bus-reach: error
   device-used: warn
   to-reaches: error
   at-pass: error
   pin-order: off
+  pair-cable: warn
   to-cabled: warn
   cable-used: warn
   hv-orange: error
@@ -533,8 +549,8 @@ is not called stale.
 
 | rule | entry | example |
 |---|---|---|
-| `to-reaches`, `at-pass`, `unfitted-note`, `pin-order`, `to-cabled` | a pin, `<box>.<connector>.<pin>` | `Accumulator.Data.11` |
-| `conductor-one-end` | a conductor, `<net> <type>` | `CAN_BAT can:L` |
+| `to-reaches`, `at-pass`, `unfitted-note`, `pin-order`, `to-cabled`, `pair-cable` | a pin, `<box>.<connector>.<pin>` | `Accumulator.Data.11` |
+| `conductor-one-end`, `bus-reach` | a conductor, `<net> <type>` | `CAN_BAT can:L` |
 | `chain-out-used`, `chain-order` | a chain out, `<chain> chain:<out>` | `SDC chain:D3` |
 | `ends-match`, `bus-internal` | a bus or link | `CAN_X1` |
 | `hv-orange` | a type, or a pin | `hv:P`, `Accumulator.HV.+` |
