@@ -69,7 +69,7 @@ chains:
     - {node: BSPD, out: s5, box: RearHub}
 ```
 
-[`tests/kestrel/`](tests/kestrel) is a complete made-up car (7 boxes, 216 pins,
+[`example/`](example) is a complete made-up car (7 boxes, 216 pins,
 CAN FD, LIN, RS-485, I2C, SPI, Ethernet and two chains). Use it as a reference.
 
 ## Install
@@ -87,7 +87,7 @@ pip install -e .
 Check a project and print every problem:
 
 ```sh
-pharness check tests/kestrel
+pharness check example
 ```
 
 Kestrel passes with `0 errors, 0 warnings`. Here is the output for a copy with
@@ -105,8 +105,8 @@ Build the pinout page, an offline HTML file with every box, connector and pin an
 the wire label of each conductor:
 
 ```sh
-pharness build tests/kestrel             # writes tests/kestrel/build/pinout.html
-pharness build tests/kestrel -o out.html
+pharness build example             # writes example/build/pinout.html
+pharness build example -o out.html
 ```
 
 If the project has an error, `build` writes nothing. Warnings still let it build,

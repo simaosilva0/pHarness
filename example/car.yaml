@@ -1,0 +1,63 @@
+car: Kestrel
+
+devices:
+  APPS1: {}
+  APPS2: {}
+  BPPS: {}
+  Wheel Speed FL: {}
+  Wheel Speed FR: {}
+  Steering Angle: {note: SENT sensor on the column}
+  IMU: {note: plugs straight into the Nose}
+  Inertia Switch: {}
+  BOTS: {}
+  Steering Wheel: {note: "buttons and paddles, talks LIN to the dash board"}
+  Display: {}
+  Cockpit Shutdown Button: {}
+  RTD Button: {}
+  Left Shutdown Button: {note: on the main hoop}
+  Right Shutdown Button: {note: on the main hoop}
+  TSMS: {}
+  LV Battery: {}
+  Left Pump: {}
+  Right Pump: {}
+  Left Fan: {note: "4 wire fan, speed by PWM"}
+  Right Fan: {note: "4 wire fan, speed by PWM"}
+  Logger: {}
+  Brake Light: {}
+  Rear Brake Pressure: {}
+  TSAL: {}
+  Motor: {note: "one motor, rear wheels through a differential"}
+  Ride Height FL: {note: "laser, RS-485"}
+  Ride Height FR: {note: "laser, RS-485"}
+  Cabin Sensor: {note: "cockpit temperature and humidity, I2C"}
+  Left Strain ADC: {note: "strain gauges on the left rear wishbones, SPI"}
+  Right Strain ADC: {note: "strain gauges on the right rear wishbones, SPI"}
+  Charger: {note: "off the car, only while charging"}
+
+buses:
+  can_drive: {bitrate: 500000, data_bitrate: 2000000, ends: [RearHub, Battery, Inverter]}
+  can_chassis: {bitrate: 500000, ends: [Nose, Cockpit, RearHub, IMU]}
+  can_charge: {bitrate: 250000, ends: [Battery, Charger]}
+  lin_wheel: {bitrate: 19200, ends: [Cockpit, Steering Wheel]}
+  rs485_ride: {bitrate: 115200, ends: [Nose, Ride Height FL, Ride Height FR]}
+  i2c_cabin: {bitrate: 100000, ends: [Cockpit, Cabin Sensor]}
+  spi_strain: {bitrate: 1000000, ends: [RearHub, Left Strain ADC, Right Strain ADC]}
+
+links:
+  eth_logger: {ends: [RearHub, Logger]}
+
+chains:
+  sdc:
+    - {node: Left Shutdown Button, out: s0}
+    - {node: Right Shutdown Button, out: s1}
+    - {node: Cockpit Shutdown Button, out: s2}
+    - {node: Inertia Switch, out: s3}
+    - {node: BOTS, out: s4}
+    - {node: BSPD, out: s5, box: RearHub}
+    - {node: IMD, out: s6, box: Battery}
+    - {node: BMS, out: s7, box: Battery}
+    - {node: TSMS, out: s8}
+  hvil:
+    - {node: BMS, out: '1', box: Battery}
+    - {node: Inverter, out: '2', box: Inverter}
+    - {node: Inlet, out: '3', box: ChargePort}

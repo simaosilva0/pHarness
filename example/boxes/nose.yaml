@@ -1,0 +1,74 @@
+box: Nose
+boards: [front_io]
+note: under the nose cone, the front IO board inside
+
+connectors:
+  pedals:
+    part: DT06-12S
+    pins:
+      - {pin: '1', net: apps1, type: ground, to: APPS1}
+      - {pin: '2', net: apps1, type: power:5v, to: APPS1}
+      - {pin: '3', net: apps1, type: analog, to: APPS1, at: front_io:a0}
+      - {pin: '4', net: apps2, type: ground, to: APPS2}
+      - {pin: '5', net: apps2, type: power:5v, to: APPS2}
+      - {pin: '6', net: apps2, type: analog, to: APPS2, at: front_io:a1}
+      - {pin: '7', net: bpps, type: ground, to: BPPS}
+      - {pin: '8', net: bpps, type: power:5v, to: BPPS}
+      - {pin: '9', net: bpps, type: analog, to: BPPS, at: front_io:a2}
+      - {pin: '10', type: spare}
+      - {pin: '11', type: unfitted, note: 'second brake pressure sensor, dropped'}
+      - {pin: '12', type: spare}
+  chassis:
+    part: DT06-12S
+    pins:
+      - {pin: '1', net: fl_wheel_speed, type: analog:p, to: Wheel Speed FL, at: front_io:ws0_p}
+      - {pin: '2', net: fl_wheel_speed, type: analog:n, to: Wheel Speed FL, at: front_io:ws0_n}
+      - {pin: '3', net: fl_wheel_speed, type: shield}
+      - {pin: '4', net: fr_wheel_speed, type: analog:p, to: Wheel Speed FR, at: front_io:ws1_p}
+      - {pin: '5', net: fr_wheel_speed, type: analog:n, to: Wheel Speed FR, at: front_io:ws1_n}
+      - {pin: '6', net: fr_wheel_speed, type: shield}
+      - {pin: '7', net: steering_angle, type: power:5v, to: Steering Angle}
+      - {pin: '8', net: steering_angle, type: ground, to: Steering Angle}
+      - {pin: '9', net: steering_angle, type: sent, to: Steering Angle, at: front_io:sent0}
+      - {pin: '10', net: sdc, type: chain:s2, to: Inertia Switch}
+      - {pin: '11', net: sdc, type: chain:s3, to: Inertia Switch}
+      - {pin: '12', net: sdc, type: chain:s3, to: BOTS}
+  bots:
+    part: DT06-2S
+    pins:
+      - {pin: '1', net: sdc, type: chain:s4, to: BOTS}
+      - {pin: '2', type: spare}
+  ride-fl:
+    part: M8-4
+    pins:
+      - {pin: '1', net: fl_ride_height, type: power:12v, to: Ride Height FL}
+      - {pin: '2', net: fl_ride_height, type: ground, to: Ride Height FL}
+      - {pin: '3', net: rs485_ride, type: rs485:a, to: Ride Height FL, at: front_io:rs485_a}
+      - {pin: '4', net: rs485_ride, type: rs485:b, to: Ride Height FL, at: front_io:rs485_b}
+  ride-fr:
+    part: M8-4
+    pins:
+      - {pin: '1', net: fr_ride_height, type: power:12v, to: Ride Height FR}
+      - {pin: '2', net: fr_ride_height, type: ground, to: Ride Height FR}
+      - {pin: '3', net: rs485_ride, type: rs485:a, to: Ride Height FR}
+      - {pin: '4', net: rs485_ride, type: rs485:b, to: Ride Height FR}
+  imu:
+    part: M12-8
+    pins:
+      - {pin: '1', net: imu, type: power:12v, to: IMU}
+      - {pin: '2', net: imu, type: ground, to: IMU}
+      - {pin: '3', net: can_chassis, type: can:h, to: IMU}
+      - {pin: '4', net: can_chassis, type: can:l, to: IMU}
+  harness:
+    part: AS612-35SN
+    note: to the Bulkhead
+    pins:
+      - {pin: A, net: front_io, type: power:12v, to: Bulkhead}
+      - {pin: B, net: front_io, type: ground, to: Bulkhead}
+      - {pin: C, net: imu, type: power:12v, to: Bulkhead}
+      - {pin: D, net: imu, type: ground, to: Bulkhead}
+      - {pin: E, net: can_chassis, type: can:h, to: Bulkhead}
+      - {pin: F, net: can_chassis, type: can:l, to: Bulkhead}
+      - {pin: G, net: sdc, type: chain:s2, to: Bulkhead}
+      - {pin: H, net: sdc, type: chain:s4, to: Bulkhead}
+      - {pin: J, type: spare}

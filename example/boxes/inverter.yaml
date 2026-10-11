@@ -1,0 +1,33 @@
+box: Inverter
+note: bought, one inverter for the one motor
+
+connectors:
+  signal:
+    part: inverter's own, 23 pin
+    pins:
+      - {pin: '1', net: inverter, type: power:12v, to: RearHub}
+      - {pin: '2', net: inverter, type: ground, to: RearHub}
+      - {pin: '3', net: can_drive, type: can:h, to: RearHub}
+      - {pin: '4', net: can_drive, type: can:l, to: RearHub}
+      - {pin: '5', net: motor_resolver_ref, type: analog:p, to: Motor}
+      - {pin: '6', net: motor_resolver_ref, type: analog:n, to: Motor}
+      - {pin: '7', net: motor_resolver_sin, type: analog:p, to: Motor}
+      - {pin: '8', net: motor_resolver_sin, type: analog:n, to: Motor}
+      - {pin: '9', net: motor_resolver_cos, type: analog:p, to: Motor}
+      - {pin: '10', net: motor_resolver_cos, type: analog:n, to: Motor}
+      - {pin: '11', net: motor_temp, type: analog, to: Motor}
+      - {pin: '12', net: motor_temp, type: ground, to: Motor}
+      - {pin: '13', net: motor_resolver, type: shield}
+  hv-in:
+    part: HVA280 2 pole
+    pins:
+      - {pin: '+', net: hv, type: hv:p, to: Battery}
+      - {pin: '-', net: hv, type: hv:n, to: Battery}
+      - {pin: '1', net: hvil, type: chain:1, to: Battery}
+      - {pin: '2', net: hvil, type: chain:2, to: Battery}
+  motor:
+    part: three M8 studs
+    pins:
+      - {pin: U, net: motor, type: hv:u, to: Motor}
+      - {pin: V, net: motor, type: hv:v, to: Motor}
+      - {pin: W, net: motor, type: hv:w, to: Motor}
