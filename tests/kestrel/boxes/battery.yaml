@@ -5,6 +5,7 @@ note: the accumulator; the BMS master, the IMD and the AIRs inside
 connectors:
   lv:
     part: DT06-8S
+    cable: Battery LV
     pins:
       - {pin: '1', net: bms, type: power:12v, to: RearHub}
       - {pin: '2', net: bms, type: ground, to: RearHub}
@@ -16,6 +17,7 @@ connectors:
       - {pin: '8', type: spare}
   hv:
     part: HVA280 2 pole
+    cable: Battery HV
     pins:
       - {pin: '+', net: hv, type: hv:p, to: Inverter}
       - {pin: '-', net: hv, type: hv:n, to: Inverter}
@@ -23,6 +25,7 @@ connectors:
       - {pin: '2', net: hvil, type: chain:2, to: Inverter, at: pass}
   charge:
     part: HVA280 2 pole
+    cable: Charge
     pins:
       - {pin: '+', net: charge, type: hv:p, to: ChargePort}
       - {pin: '-', net: charge, type: hv:n, to: ChargePort}

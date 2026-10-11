@@ -5,6 +5,7 @@ note: under the nose cone, the front IO board inside
 connectors:
   pedals:
     part: DT06-12S
+    cable: Pedals
     pins:
       - {pin: '1', net: apps1, type: ground, to: APPS1}
       - {pin: '2', net: apps1, type: power:5v, to: APPS1}
@@ -20,6 +21,7 @@ connectors:
       - {pin: '12', type: spare}
   chassis:
     part: DT06-12S
+    cable: Chassis
     pins:
       - {pin: '1', net: fl_wheel_speed, type: analog:p, to: Wheel Speed FL, at: front_io:ws0_p}
       - {pin: '2', net: fl_wheel_speed, type: analog:n, to: Wheel Speed FL, at: front_io:ws0_n}
@@ -32,14 +34,16 @@ connectors:
       - {pin: '9', net: steering_angle, type: sent, to: Steering Angle, at: front_io:sent0}
       - {pin: '10', net: sdc, type: chain:s2, to: Inertia Switch}
       - {pin: '11', net: sdc, type: chain:s3, to: Inertia Switch}
-      - {pin: '12', net: sdc, type: chain:s3, to: BOTS}
+      - {pin: '12', net: sdc, type: chain:s3, to: BOTS, cable: BOTS Lead}
   bots:
     part: DT06-2S
+    cable: BOTS Lead
     pins:
       - {pin: '1', net: sdc, type: chain:s4, to: BOTS}
       - {pin: '2', type: spare}
   ride-fl:
     part: M8-4
+    cable: Ride FL
     pins:
       - {pin: '1', net: fl_ride_height, type: power:12v, to: Ride Height FL}
       - {pin: '2', net: fl_ride_height, type: ground, to: Ride Height FL}
@@ -47,6 +51,7 @@ connectors:
       - {pin: '4', net: rs485_ride, type: rs485:b, to: Ride Height FL, at: front_io:rs485_b}
   ride-fr:
     part: M8-4
+    cable: Ride FR
     pins:
       - {pin: '1', net: fr_ride_height, type: power:12v, to: Ride Height FR}
       - {pin: '2', net: fr_ride_height, type: ground, to: Ride Height FR}
@@ -54,6 +59,7 @@ connectors:
       - {pin: '4', net: rs485_ride, type: rs485:b, to: Ride Height FR}
   imu:
     part: M12-8
+    cable: IMU Lead
     pins:
       - {pin: '1', net: imu, type: power:12v, to: IMU}
       - {pin: '2', net: imu, type: ground, to: IMU}
@@ -61,6 +67,7 @@ connectors:
       - {pin: '4', net: can_chassis, type: can:l, to: IMU}
   harness:
     part: AS612-35SN
+    cable: Front
     note: to the Bulkhead
     pins:
       - {pin: A, net: front_io, type: power:12v, to: Bulkhead}

@@ -1,12 +1,13 @@
 # Kestrel: a made-up car, the project the tests plant their errors in.
 # Nets in snake case, boxes in PascalCase, connectors in kebab case,
-# boards in snake case. 12 V low voltage, corners as sides.
+# boards in snake case, cables in title. 12 V low voltage, corners as sides.
 style:
   net: snake
   box: pascal
   connector: kebab
   device: title
   board: snake
+  cable: title
 
 sides: [left, right, fl, fr, rl, rr]
 
@@ -38,6 +39,8 @@ rules:
   to-reaches: error
   at-pass: error
   pin-order: warn
+  cable-used: warn
+  to-cabled: warn
 
 # Entries known to break an adjustable rule, each with its reason.
 accept: {}

@@ -1,0 +1,2 @@
+cable: LV Supply
+ends: [RearHub.supply, LV Battery]

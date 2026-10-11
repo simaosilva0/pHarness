@@ -1,0 +1,2 @@
+cable: Battery LV
+ends: [Battery.lv, RearHub.battery]

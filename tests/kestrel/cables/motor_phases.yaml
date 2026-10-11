@@ -1,0 +1,2 @@
+cable: Motor Phases
+ends: [Inverter.motor, Motor]

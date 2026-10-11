@@ -7,7 +7,7 @@ from pharness.output.pinout import build_pinout
 
 NOSE = "boxes/nose.yaml"
 BATTERY = "boxes/battery.yaml"
-SPARE = "{pin: '2', type: spare}"   # Nose bots 2, boxes/nose.yaml:40
+SPARE = "{pin: '2', type: spare}"   # Nose bots 2, boxes/nose.yaml:43
 
 
 def page_of(project):
@@ -42,7 +42,7 @@ def test_a_to_a_box_links_to_it_and_a_device_does_not(project):
 
 def test_spare_pins_are_greyed(project):
     page = page_of(project)
-    assert '<tr id="boxes-battery-yaml-16" class="unused">' in page
+    assert '<tr id="boxes-battery-yaml-17" class="unused">' in page
 
 
 def test_text_is_escaped(project):
@@ -56,8 +56,8 @@ def test_a_warning_is_listed_and_marked_on_its_pin(project):
     project.replace(NOSE, SPARE, "{pin: '2', net: horn, type: digital}")
     page = page_of(project)
     assert "<strong>1 warning</strong>" in page
-    assert '<a href="#boxes-nose-yaml-40">' in page
-    assert '<tr id="boxes-nose-yaml-40" class="warned">' in page
+    assert '<a href="#boxes-nose-yaml-43">' in page
+    assert '<tr id="boxes-nose-yaml-43" class="warned">' in page
     assert '<span class="warning">conductor-one-end: horn digital: ' in page
 
 
@@ -91,3 +91,4 @@ def test_build_writes_nothing_with_an_error(project, capsys):
     assert main(["build", str(project.root)]) == 1
     assert not (project.root / "build").exists()
     assert "nothing written" in capsys.readouterr().out
+

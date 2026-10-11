@@ -4,6 +4,7 @@ note: bought, one inverter for the one motor
 connectors:
   signal:
     part: inverter's own, 23 pin
+    cable: Inverter Signal
     pins:
       - {pin: '1', net: inverter, type: power:12v, to: RearHub}
       - {pin: '2', net: inverter, type: ground, to: RearHub}
@@ -20,6 +21,7 @@ connectors:
       - {pin: '13', net: motor_resolver, type: shield}
   hv-in:
     part: HVA280 2 pole
+    cable: Battery HV
     pins:
       - {pin: '+', net: hv, type: hv:p, to: Battery}
       - {pin: '-', net: hv, type: hv:n, to: Battery}
@@ -27,6 +29,7 @@ connectors:
       - {pin: '2', net: hvil, type: chain:2, to: Battery}
   motor:
     part: three M8 studs
+    cable: Motor Phases
     pins:
       - {pin: U, net: motor, type: hv:u, to: Motor}
       - {pin: V, net: motor, type: hv:v, to: Motor}

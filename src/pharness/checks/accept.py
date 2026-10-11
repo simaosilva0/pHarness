@@ -34,6 +34,7 @@ def entries_by_rule(model):
     buses = list(model.car.buses)
     links = list(model.car.links)
     devices = list(model.car.devices)
+    cables = [cable.name for cable in model.cables]
     return {
         "to-reaches": pins,
         "at-pass": pins,
@@ -44,4 +45,6 @@ def entries_by_rule(model):
         "ends-match": buses + links,
         "bus-internal": buses,
         "device-used": devices,
+        "to-cabled": pins,
+        "cable-used": cables,
     }

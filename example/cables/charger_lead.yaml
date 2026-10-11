@@ -1,0 +1,3 @@
+cable: Charger Lead
+ends: [ChargePort.inlet, Charger]
+note: "the charger's own, off the car"

@@ -34,6 +34,7 @@ DEFAULT_STYLE = {
     "connector": "title",
     "device": "title",
     "board": "kebab",
+    "cable": "title",
 }
 
 

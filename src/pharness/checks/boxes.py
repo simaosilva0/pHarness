@@ -1,4 +1,4 @@
-"""boxes/<box>.yaml (STRUCT.md, boxes; CONFIG.md: Boxes, connectors, devices, boards)."""
+"""boxes/<box>.yaml (STRUCT.md, boxes; CONFIG.md: Boxes, connectors, devices, boards, cables)."""
 
 import re
 
@@ -143,8 +143,9 @@ def check_pin_net(model, pin, report):
     has_net = pin.net is not None
     if pin.type in no_net:
         report.check("pin-net", not has_net, pin.where, f"{pin.type} pin {pin.name} has net {pin.net}")
-        report.check("spare-no-to", pin.to is None, pin.where,
-                     f"{pin.type} pin {pin.name} goes to {pin.to}, but no wire leaves it")
+        wire_fields = [name for name in ["to", "cable", "color"] if name in pin.data]
+        report.check("spare-no-to", not wire_fields, pin.where,
+                     f"{pin.type} pin {pin.name} has {', '.join(wire_fields)}, but no wire leaves it")
     else:
         report.check("pin-net", has_net, pin.where, f"pin {pin.name} ({pin.type}) has no net")
 

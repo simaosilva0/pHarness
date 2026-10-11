@@ -16,7 +16,7 @@ def problems(project):
 
 def test_a_conductor_on_one_pin(project):
     project.replace(NOSE, "{pin: '2', type: spare}", "{pin: '2', net: horn, type: digital}")
-    assert problems(project) == [("conductor-one-end", "boxes/nose.yaml:40", "warn", "horn digital")]
+    assert problems(project) == [("conductor-one-end", "boxes/nose.yaml:43", "warn", "horn digital")]
 
 
 def test_a_conductor_on_one_pin_going_to_a_device(project):
@@ -30,8 +30,8 @@ def test_a_shield_on_one_pin(project):
 
 
 def test_two_conductors_with_one_label(project):
-    project.replace(NOSE, "{pin: '2', type: spare}", "{pin: '2', net: apps1, type: digital, to: APPS1}")
-    assert project.broken() == [("label-unique", "boxes/nose.yaml:11")]
+    project.replace(NOSE, "{pin: '10', type: spare}", "{pin: '10', net: apps1, type: digital, to: APPS1}")
+    assert project.broken() == [("label-unique", "boxes/nose.yaml:12")]
 
 
 # --- where the wires go ----------------------------------------------------------
@@ -39,7 +39,9 @@ def test_two_conductors_with_one_label(project):
 def test_a_to_a_box_without_the_pin(project):
     project.replace(BATTERY, "{pin: '1', net: bms, type: power:12v, to: RearHub}",
                     "{pin: '1', net: bms, type: power:12v, to: Nose}")
-    assert problems(project) == [("to-reaches", "boxes/battery.yaml:9", "error", "Battery.lv.1")]
+    # Its cable does not go to Nose either.
+    assert problems(project) == [("to-reaches", "boxes/battery.yaml:10", "error", "Battery.lv.1"),
+                                 ("cable-on-end", "boxes/battery.yaml:10", "error", None)]
 
 
 # --- buses and links -----------------------------------------------------------------

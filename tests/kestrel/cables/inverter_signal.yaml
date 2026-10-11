@@ -1,0 +1,3 @@
+cable: Inverter Signal
+ends: [Inverter.signal, RearHub.inverter, Motor]
+note: "branches at the inverter: supply and CAN to the RearHub, resolver and temperature to the motor"

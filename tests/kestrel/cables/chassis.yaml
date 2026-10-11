@@ -1,0 +1,2 @@
+cable: Chassis
+ends: [Nose.chassis, Wheel Speed FL, Wheel Speed FR, Steering Angle, Inertia Switch]

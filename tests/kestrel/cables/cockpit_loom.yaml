@@ -1,0 +1,2 @@
+cable: Cockpit Loom
+ends: [Cockpit.harness, Bulkhead.cockpit]

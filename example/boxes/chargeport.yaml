@@ -4,6 +4,7 @@ note: the charging inlet on the side pod; the charger's plug closes the HVIL ins
 connectors:
   car:
     part: HVA280 2 pole
+    cable: Charge
     pins:
       - {pin: '+', net: charge, type: hv:p, to: Battery, at: pass}
       - {pin: '-', net: charge, type: hv:n, to: Battery, at: pass}
@@ -13,6 +14,7 @@ connectors:
       - {pin: '4', net: can_charge, type: can:l, to: Battery, at: pass}
   inlet:
     part: Type 2 inlet
+    cable: Charger Lead
     pins:
       - {pin: L1, net: charge, type: hv:p, to: Charger, at: pass}
       - {pin: N, net: charge, type: hv:n, to: Charger, at: pass}

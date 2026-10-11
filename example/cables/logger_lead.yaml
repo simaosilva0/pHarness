@@ -1,0 +1,2 @@
+cable: Logger Lead
+ends: [RearHub.logger, Logger]

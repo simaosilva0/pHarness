@@ -51,19 +51,21 @@ def test_a_box_named_like_its_board(project):
 
 def test_a_connector_name_in_another_style(project):
     project.replace(NOSE, "  bots:\n", "  Bots:\n")
-    assert project.broken() == [("connector-style", "boxes/nose.yaml:36")]
+    # The cable that ends at it still names it bots.
+    assert project.broken() == [("connector-style", "boxes/nose.yaml:38"),
+                                ("cable-ends", "cables/bots_lead.yaml:2")]
 
 
 def test_a_connector_without_pins(project):
     project.add(NOSE, "  spare-io:\n    part: DT06-2S\n")
-    assert project.broken() == [("connector-pins", "boxes/nose.yaml:75")]
+    assert project.broken() == [("connector-pins", "boxes/nose.yaml:82")]
 
 
 # --- pins ----------------------------------------------------------------------
 
 def test_a_pin_written_twice(project):
     project.replace(NOSE, "{pin: '12', type: spare}", "{pin: '11', type: spare}")
-    assert project.broken() == [("pin-once", "boxes/nose.yaml:20")]
+    assert project.broken() == [("pin-once", "boxes/nose.yaml:21")]
 
 
 def test_pins_in_another_case_are_two_pins(project):
@@ -74,28 +76,28 @@ def test_pins_in_another_case_are_two_pins(project):
 
 def test_a_pin_without_a_type(project):
     project.replace(NOSE, "{pin: '10', type: spare}", "{pin: '10'}")
-    assert project.broken() == [("pin-fields", "boxes/nose.yaml:18")]
+    assert project.broken() == [("pin-fields", "boxes/nose.yaml:19")]
 
 
 def test_a_pin_that_is_not_a_string(project):
     project.replace(NOSE, "{pin: '10', type: spare}", "{pin: 10, type: spare}")
-    assert project.broken() == [("pin-string", "boxes/nose.yaml:18")]
+    assert project.broken() == [("pin-string", "boxes/nose.yaml:19")]
 
 
 def test_a_spare_pin_with_a_net(project):
     project.replace(NOSE, "{pin: '10', type: spare}", "{pin: '10', net: bpps, type: spare}")
-    assert project.broken() == [("pin-net", "boxes/nose.yaml:18")]
+    assert project.broken() == [("pin-net", "boxes/nose.yaml:19")]
 
 
 def test_a_pin_without_a_net(project):
     project.replace(NOSE, "{pin: '10', type: spare}", "{pin: '10', type: analog}")
-    assert project.broken() == [("pin-net", "boxes/nose.yaml:18")]
+    assert project.broken() == [("pin-net", "boxes/nose.yaml:19")]
 
 
 def test_an_unfitted_pin_without_a_note(project):
     project.replace(NOSE, "type: unfitted, note: 'second brake pressure sensor, dropped'}",
                     "type: unfitted}")
-    assert project.broken() == [("unfitted-note", "boxes/nose.yaml:19")]
+    assert project.broken() == [("unfitted-note", "boxes/nose.yaml:20")]
 
 
 def test_fields_out_of_order(project):
@@ -107,28 +109,28 @@ def test_fields_out_of_order(project):
 def test_a_to_that_is_no_box_or_device(project):
     project.replace(NOSE, "{pin: '1', net: sdc, type: chain:s4, to: BOTS}",
                     "{pin: '1', net: sdc, type: chain:s4, to: Bots}")
-    assert ("to-known", "boxes/nose.yaml:39") in project.broken()
+    assert ("to-known", "boxes/nose.yaml:42") in project.broken()
 
 
 def test_a_to_its_own_box(project):
     project.replace(NOSE, "{pin: H, net: sdc, type: chain:s4, to: Bulkhead}",
                     "{pin: H, net: sdc, type: chain:s4, to: Nose}")
-    assert ("to-not-own-box", "boxes/nose.yaml:73") in project.broken()
+    assert ("to-not-own-box", "boxes/nose.yaml:80") in project.broken()
 
 
 def test_a_spare_pin_with_a_to(project):
     project.replace(NOSE, "{pin: '10', type: spare}", "{pin: '10', type: spare, to: BPPS}")
-    assert project.broken() == [("spare-no-to", "boxes/nose.yaml:18")]
+    assert project.broken() == [("spare-no-to", "boxes/nose.yaml:19")]
 
 
 def test_an_at_without_a_board(project):
     project.replace(NOSE, "at: front_io:a0}", "at: a0}")
-    assert project.broken() == [("at-form", "boxes/nose.yaml:11")]
+    assert project.broken() == [("at-form", "boxes/nose.yaml:12")]
 
 
 def test_an_at_on_a_board_the_box_does_not_have(project):
     project.replace(NOSE, "at: front_io:a0}", "at: rear_io:a0}")
-    assert project.broken() == [("at-form", "boxes/nose.yaml:11")]
+    assert project.broken() == [("at-form", "boxes/nose.yaml:12")]
 
 
 def test_a_pass_with_nothing_to_pass_to(project):
@@ -136,7 +138,7 @@ def test_a_pass_with_nothing_to_pass_to(project):
                     "{pin: '1', net: imu, type: power:12v, to: IMU, at: pass}")
     project.replace(NOSE, "{pin: C, net: imu, type: power:12v, to: Bulkhead}",
                     "{pin: C, type: spare}")
-    assert ("at-pass", "boxes/nose.yaml:58") in project.broken()
+    assert ("at-pass", "boxes/nose.yaml:64") in project.broken()
 
 
 def test_a_pass_to_another_connector(project):

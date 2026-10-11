@@ -6,7 +6,7 @@ of the model, so the checks after it never meet a list where they expect text.
 
 from .fields import check_fields, get_list, get_map, is_map, is_text_name
 from .load import Map
-from .model import Box, Car, Connector, Model, Node, Pin
+from .model import Box, Cable, Car, Connector, Model, Node, Pin, Wire
 
 CAR_FILE = "car.yaml"
 CAR_FIELDS = ["car", "devices", "buses", "links", "chains"]
@@ -16,15 +16,20 @@ LINK_FIELDS = ["ends"]
 NODE_FIELDS = ["node", "out", "box"]
 
 BOX_FIELDS = ["box", "boards", "note", "connectors"]
-CONNECTOR_FIELDS = ["part", "note", "pins"]
-PIN_FIELDS = ["pin", "net", "type", "to", "at", "note"]
-PIN_TEXT_FIELDS = ["net", "type", "to", "at", "note"]   # `pin` has its own rule
+CONNECTOR_FIELDS = ["part", "cable", "note", "pins"]
+PIN_FIELDS = ["pin", "net", "type", "to", "cable", "color", "at", "note"]
+PIN_TEXT_FIELDS = ["net", "type", "to", "cable", "color", "at", "note"]   # `pin` has its own rule
+
+CABLE_FIELDS = ["cable", "ends", "part", "note", "wires"]
+WIRE_FIELDS = ["net", "type", "from", "to", "color"]
 
 
 def read_model(project, settings, report):
     car = read_car(project.car, report)
     boxes = [read_box(box, report) for box in project.boxes]
-    return Model(settings, car, boxes, project.unread)
+    cables = [read_cable(cable, report) for cable in project.cables]
+    return Model(settings, car, boxes, project.unread, cables, project.unread_cables,
+                 project.has_cables)
 
 
 # --- car.yaml ------------------------------------------------------------------
@@ -95,6 +100,7 @@ def read_box(loaded, report):
         if not is_map(connector_data, file, line, f"connector {name}", report):
             continue
         check_fields(connector_data, CONNECTOR_FIELDS, file, f"connector {name}", report)
+        drop_fields_that_are_not_text(connector_data, ["cable"], f"{file}:{line}", report)
         connector = Connector(name, connector_data, f"{file}:{line}")
         connector.pins = read_pins(box, connector, report)
         box.connectors.append(connector)
@@ -110,8 +116,27 @@ def read_pins(box, connector, report):
         at = f"{box.file}:{pin_data.line}"
         check_fields(pin_data, PIN_FIELDS, box.file, f"pin {pin_data.get('pin')}", report)
         drop_fields_that_are_not_text(pin_data, PIN_TEXT_FIELDS, at, report)
-        pins.append(Pin(box.name, connector.name, pin_data, at))
+        pins.append(Pin(box.name, connector.name, pin_data, at, connector.data.get("cable")))
     return pins
+
+
+# --- cables/<cable>.yaml -----------------------------------------------------------
+
+def read_cable(loaded, report):
+    data = loaded.data
+    file = loaded.name
+    check_fields(data, CABLE_FIELDS, file, "cable", report)
+    ends = get_list(data, "ends", file, report)
+    cable = Cable(data.get("cable"), file, loaded.path, data, ends)
+
+    for wire_data in get_list(data, "wires", file, report):
+        if not is_map(wire_data, file, data.at["wires"], f"a wire of {cable.name}", report):
+            continue
+        at = f"{file}:{wire_data.line}"
+        check_fields(wire_data, WIRE_FIELDS, file, "wire", report)
+        drop_fields_that_are_not_text(wire_data, WIRE_FIELDS, at, report)
+        cable.wires.append(Wire(cable.name, wire_data, at))
+    return cable
 
 
 # --- helpers -------------------------------------------------------------------

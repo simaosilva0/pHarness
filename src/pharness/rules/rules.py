@@ -69,13 +69,14 @@ RULES = {
     "chain-type": ERROR,
     "chain-out-used": Rule("warn", True),
 
-    # CONFIG.md, Boxes, connectors, devices, boards
+    # CONFIG.md, Boxes, connectors, devices, boards, cables
     "box-style": ERROR,
     "connector-style": ERROR,
     "device-style": ERROR,
     "board-style": ERROR,
     "box-not-board": ERROR,
     "box-not-device": ERROR,
+    "cable-style": ERROR,
 
     # CONFIG.md, Rule levels
     "rule-known": ERROR,
@@ -109,6 +110,18 @@ RULES = {
     "at-form": ERROR,
     "at-pass": Rule("error", True),
     "pin-order": Rule("warn", True),
+
+    # STRUCT.md, cables/<cable>.yaml
+    "cable-file": ERROR,
+    "cable-fields": ERROR,
+    "cable-ends": ERROR,
+    "cable-known": ERROR,
+    "cable-to": ERROR,
+    "cable-on-end": ERROR,
+    "cable-far-pin": ERROR,
+    "wire-fields": ERROR,
+    "cable-used": Rule("warn", True),
+    "to-cabled": Rule("warn", True),
 }
 
 LEVELS = ["error", "warn", "off"]

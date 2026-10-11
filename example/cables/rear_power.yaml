@@ -1,0 +1,3 @@
+cable: Rear Power
+ends: [Bulkhead.rear, RearHub.front]
+note: shares both connectors with Rear Signal

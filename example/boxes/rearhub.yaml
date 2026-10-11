@@ -5,24 +5,26 @@ note: behind the seat; the VCU and the BSPD (no firmware, named after its schema
 connectors:
   supply:
     part: DT04-2P
+    cable: LV Supply
     pins:
       - {pin: '1', net: lv_battery, type: power:12v, to: LV Battery}
       - {pin: '2', net: lv_battery, type: ground, to: LV Battery}
   front:
     part: AS614-35SN
     pins:
-      - {pin: A, net: front_io, type: power:12v, to: Bulkhead, at: vcu:out0}
-      - {pin: B, net: front_io, type: ground, to: Bulkhead}
-      - {pin: C, net: imu, type: power:12v, to: Bulkhead, at: vcu:out1}
-      - {pin: D, net: imu, type: ground, to: Bulkhead}
-      - {pin: E, net: dash, type: power:12v, to: Bulkhead, at: vcu:out2}
-      - {pin: F, net: dash, type: ground, to: Bulkhead}
-      - {pin: G, net: can_chassis, type: can:h, to: Bulkhead, at: vcu:can1h}
-      - {pin: H, net: can_chassis, type: can:l, to: Bulkhead, at: vcu:can1l}
-      - {pin: J, net: sdc, type: chain:s1, to: Bulkhead, at: pass}
-      - {pin: K, net: sdc, type: chain:s4, to: Bulkhead, at: bspd:sdc_in}
+      - {pin: A, net: front_io, type: power:12v, to: Bulkhead, cable: Rear Power, at: vcu:out0}
+      - {pin: B, net: front_io, type: ground, to: Bulkhead, cable: Rear Power}
+      - {pin: C, net: imu, type: power:12v, to: Bulkhead, cable: Rear Power, at: vcu:out1}
+      - {pin: D, net: imu, type: ground, to: Bulkhead, cable: Rear Power}
+      - {pin: E, net: dash, type: power:12v, to: Bulkhead, cable: Rear Power, at: vcu:out2}
+      - {pin: F, net: dash, type: ground, to: Bulkhead, cable: Rear Power}
+      - {pin: G, net: can_chassis, type: can:h, to: Bulkhead, cable: Rear Signal, at: vcu:can1h}
+      - {pin: H, net: can_chassis, type: can:l, to: Bulkhead, cable: Rear Signal, at: vcu:can1l}
+      - {pin: J, net: sdc, type: chain:s1, to: Bulkhead, cable: Rear Signal, at: pass}
+      - {pin: K, net: sdc, type: chain:s4, to: Bulkhead, cable: Rear Signal, at: bspd:sdc_in}
   sdc:
     part: DT06-8S
+    cable: Main Hoop
     pins:
       - {pin: '1', net: sdc_supply, type: power:12v, to: Left Shutdown Button, at: vcu:out3}
       - {pin: '2', net: sdc, type: chain:s0, to: Left Shutdown Button}
@@ -34,6 +36,7 @@ connectors:
       - {pin: '8', type: spare}
   battery:
     part: DT06-8S
+    cable: Battery LV
     pins:
       - {pin: '1', net: bms, type: power:12v, to: Battery, at: vcu:out4}
       - {pin: '2', net: bms, type: ground, to: Battery}
@@ -45,6 +48,7 @@ connectors:
       - {pin: '8', type: spare}
   inverter:
     part: DT06-6S
+    cable: Inverter Signal
     pins:
       - {pin: '1', net: inverter, type: power:12v, to: Inverter, at: vcu:out5}
       - {pin: '2', net: inverter, type: ground, to: Inverter}
@@ -55,20 +59,21 @@ connectors:
   cooling:
     part: DT06-12S
     pins:
-      - {pin: '1', net: left_pump, type: power:12v, to: Left Pump, at: vcu:out6}
-      - {pin: '2', net: left_pump, type: ground, to: Left Pump}
-      - {pin: '3', net: right_pump, type: power:12v, to: Right Pump, at: vcu:out7}
-      - {pin: '4', net: right_pump, type: ground, to: Right Pump}
-      - {pin: '5', net: left_fan, type: power:12v, to: Left Fan, at: vcu:out8}
-      - {pin: '6', net: left_fan, type: ground, to: Left Fan}
-      - {pin: '7', net: left_fan, type: pwm, to: Left Fan, at: vcu:pwm0}
-      - {pin: '8', net: left_fan_tach, type: freq, to: Left Fan, at: vcu:tach0}
-      - {pin: '9', net: right_fan, type: power:12v, to: Right Fan, at: vcu:out9}
-      - {pin: '10', net: right_fan, type: ground, to: Right Fan}
-      - {pin: '11', net: right_fan, type: pwm, to: Right Fan, at: vcu:pwm1}
-      - {pin: '12', net: right_fan_tach, type: freq, to: Right Fan, at: vcu:tach1}
+      - {pin: '1', net: left_pump, type: power:12v, to: Left Pump, cable: Left Cooling, at: vcu:out6}
+      - {pin: '2', net: left_pump, type: ground, to: Left Pump, cable: Left Cooling}
+      - {pin: '3', net: right_pump, type: power:12v, to: Right Pump, cable: Right Cooling, at: vcu:out7}
+      - {pin: '4', net: right_pump, type: ground, to: Right Pump, cable: Right Cooling}
+      - {pin: '5', net: left_fan, type: power:12v, to: Left Fan, cable: Left Cooling, at: vcu:out8}
+      - {pin: '6', net: left_fan, type: ground, to: Left Fan, cable: Left Cooling}
+      - {pin: '7', net: left_fan, type: pwm, to: Left Fan, cable: Left Cooling, at: vcu:pwm0}
+      - {pin: '8', net: left_fan_tach, type: freq, to: Left Fan, cable: Left Cooling, at: vcu:tach0}
+      - {pin: '9', net: right_fan, type: power:12v, to: Right Fan, cable: Right Cooling, at: vcu:out9}
+      - {pin: '10', net: right_fan, type: ground, to: Right Fan, cable: Right Cooling}
+      - {pin: '11', net: right_fan, type: pwm, to: Right Fan, cable: Right Cooling, at: vcu:pwm1}
+      - {pin: '12', net: right_fan_tach, type: freq, to: Right Fan, cable: Right Cooling, at: vcu:tach1}
   rear:
     part: DT06-8S
+    cable: Rear Loom
     pins:
       - {pin: '1', net: brake_light, type: power:12v, to: Brake Light, at: vcu:out10}
       - {pin: '2', net: brake_light, type: ground, to: Brake Light}
@@ -80,6 +85,7 @@ connectors:
       - {pin: '8', type: spare}
   strain-left:
     part: DT06-6S
+    cable: Left Strain
     pins:
       - {pin: '1', net: left_strain_adc, type: power:5v, to: Left Strain ADC}
       - {pin: '2', net: left_strain_adc, type: ground, to: Left Strain ADC}
@@ -89,6 +95,7 @@ connectors:
       - {pin: '6', net: spi_strain, type: spi:cs0, to: Left Strain ADC, at: vcu:cs0}
   strain-right:
     part: DT06-6S
+    cable: Right Strain
     pins:
       - {pin: '1', net: right_strain_adc, type: power:5v, to: Right Strain ADC}
       - {pin: '2', net: right_strain_adc, type: ground, to: Right Strain ADC}
@@ -98,6 +105,7 @@ connectors:
       - {pin: '6', net: spi_strain, type: spi:cs1, to: Right Strain ADC, at: vcu:cs1}
   logger:
     part: M12-4 D-coded
+    cable: Logger Lead
     pins:
       - {pin: '1', net: eth_logger, type: ethernet:p, to: Logger, at: vcu:eth_p}
       - {pin: '2', net: eth_logger, type: ethernet:n, to: Logger, at: vcu:eth_n}

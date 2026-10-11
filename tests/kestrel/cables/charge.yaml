@@ -1,0 +1,2 @@
+cable: Charge
+ends: [Battery.charge, ChargePort.car]

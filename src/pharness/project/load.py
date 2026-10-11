@@ -105,33 +105,53 @@ class Box:
 
 
 @dataclass
+class Cable:
+    """One cable file."""
+
+    path: Path
+    name: str   # the file's path from the project, for reports
+    data: Map
+
+
+@dataclass
 class Project:
     root: Path
     config: Map
     car: Map
-    boxes: list   # every box file that could be read, as Box
-    unread: list  # the box files that could not be read
+    boxes: list           # every box file that could be read, as Box
+    unread: list          # the box files that could not be read
+    cables: list          # every cable file that could be read, as Cable
+    unread_cables: list   # the cable files that could not be read
+    has_cables: bool      # whether there is a cables/ folder
 
 
 def load_project(root, report):
     """The whole project, or None when config.yaml or car.yaml cannot be read.
 
-    Box files are read even then, so all their YAML problems are reported.
+    Box and cable files are read even then, so all their YAML problems are reported.
     """
     root = Path(root)
     config = load(root / "config.yaml", root, report)
     car = load(root / "car.yaml", root, report)
+    boxes, unread = load_folder(root, "boxes", Box, report)
+    cables, unread_cables = load_folder(root, "cables", Cable, report)
+    has_cables = (root / "cables").is_dir()
 
-    boxes = []
+    if config is None or car is None:
+        return None
+    return Project(root, config, car, boxes, unread, cables, unread_cables, has_cables)
+
+
+def load_folder(root, folder, kind, report):
+    """Every file of a folder, as `kind` (Box or Cable), and the names of the
+    files that could not be read."""
+    read = []
     unread = []
-    for path in sorted((root / "boxes").glob("*.yaml")):
+    for path in sorted((root / folder).glob("*.yaml")):
         name = path.relative_to(root).as_posix()
         data = load(path, root, report)
         if data is None:
             unread.append(name)
         else:
-            boxes.append(Box(path, name, data))
-
-    if config is None or car is None:
-        return None
-    return Project(root, config, car, boxes, unread)
+            read.append(kind(path, name, data))
+    return read, unread

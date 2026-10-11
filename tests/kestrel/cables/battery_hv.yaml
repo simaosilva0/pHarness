@@ -1,0 +1,3 @@
+cable: Battery HV
+ends: [Battery.hv, Inverter.hv-in]
+note: "orange, with the HVIL in it"

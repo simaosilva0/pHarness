@@ -1,0 +1,3 @@
+cable: Right Cooling
+ends: [RearHub.cooling, Right Pump, Right Fan]
+note: shares RearHub cooling with Left Cooling

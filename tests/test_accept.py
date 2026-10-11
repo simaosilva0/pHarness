@@ -36,18 +36,18 @@ def test_an_accepted_entry_is_not_reported(project):
 
 def test_an_accepted_entry_that_does_not_exist(project):
     accept(project, "to-reaches", "Nose.harness.Z")
-    assert project.broken() == [("accept-known", "config.yaml:45")]
+    assert project.broken() == [("accept-known", "config.yaml:48")]
 
 
 def test_an_accepted_entry_that_no_longer_breaks_its_rule(project):
     accept(project, "to-reaches", "Nose.harness.A")
-    assert problems(project) == [("accept-used", "config.yaml:45", "warn")]
+    assert problems(project) == [("accept-used", "config.yaml:48", "warn")]
 
 
 def test_an_accepted_pin_its_rule_is_not_about(project):
     # pedals 1 goes to a device: to-reaches is about pins going to a box.
     accept(project, "to-reaches", "Nose.pedals.1")
-    assert problems(project) == [("accept-used", "config.yaml:45", "warn")]
+    assert problems(project) == [("accept-used", "config.yaml:48", "warn")]
 
 
 def test_an_accepted_entry_under_a_rule_turned_off(project):
@@ -68,7 +68,7 @@ def test_an_accepted_pin_going_nowhere_known(project):
     project.replace(NOSE, "{pin: A, net: front_io, type: power:12v, to: Bulkhead}",
                     "{pin: A, net: front_io, type: power:12v, to: Bulkhed}")
     accept(project, "to-reaches", "Nose.harness.A")
-    assert project.broken() == [("to-known", "boxes/nose.yaml:66")]
+    assert project.broken() == [("to-known", "boxes/nose.yaml:73")]
 
 
 def test_accepted_entries_while_a_box_has_no_name(project):

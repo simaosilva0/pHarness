@@ -5,6 +5,7 @@ note: behind the dashboard
 connectors:
   harness:
     part: AS610-35SN
+    cable: Cockpit Loom
     pins:
       - {pin: A, net: dash, type: power:12v, to: Bulkhead}
       - {pin: B, net: dash, type: ground, to: Bulkhead}
@@ -14,6 +15,7 @@ connectors:
       - {pin: F, net: sdc, type: chain:s2, to: Bulkhead}
   wheel:
     part: quick release, 4 pin
+    cable: Wheel
     pins:
       - {pin: '1', net: steering_wheel, type: power:12v, to: Steering Wheel}
       - {pin: '2', net: steering_wheel, type: ground, to: Steering Wheel}
@@ -21,6 +23,7 @@ connectors:
       - {pin: '4', type: spare}
   display:
     part: DT06-6S
+    cable: Display Lead
     pins:
       - {pin: '1', net: display, type: power:12v, to: Display}
       - {pin: '2', net: display, type: ground, to: Display}
@@ -30,6 +33,7 @@ connectors:
       - {pin: '6', type: spare}
   cabin:
     part: DT06-4S
+    cable: Cabin Lead
     pins:
       - {pin: '1', net: cabin_sensor, type: power:5v, to: Cabin Sensor}
       - {pin: '2', net: cabin_sensor, type: ground, to: Cabin Sensor}
@@ -37,6 +41,7 @@ connectors:
       - {pin: '4', net: i2c_cabin, type: i2c:scl, to: Cabin Sensor, at: dash:scl0}
   buttons:
     part: DT06-6S
+    cable: Buttons
     pins:
       - {pin: '1', net: sdc, type: chain:s1, to: Cockpit Shutdown Button}
       - {pin: '2', net: sdc, type: chain:s2, to: Cockpit Shutdown Button, at: dash:sense0}

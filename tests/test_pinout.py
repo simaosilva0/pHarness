@@ -111,7 +111,8 @@ def test_a_warning_is_listed_and_on_its_pin(project):
     project.replace(NOSE, "{pin: '2', type: spare}", "{pin: '2', net: horn, type: digital}")
     pinout = pinout_of(project)
 
-    assert [(w.rule, w.where) for w in pinout.warnings] == [("conductor-one-end", "boxes/nose.yaml:40")]
+    assert [(w.rule, w.where) for w in pinout.warnings] == [("conductor-one-end", "boxes/nose.yaml:43")]
     horn = row(pinout, "Nose", "bots", "2")
     assert [w.rule for w in horn.warnings] == ["conductor-one-end"]
     assert row(pinout, "Nose", "bots", "1").warnings == []
+

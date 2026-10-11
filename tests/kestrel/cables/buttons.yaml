@@ -1,0 +1,2 @@
+cable: Buttons
+ends: [Cockpit.buttons, Cockpit Shutdown Button, RTD Button]

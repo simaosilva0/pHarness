@@ -1,0 +1,3 @@
+cable: BOTS Lead
+ends: [Nose.chassis, Nose.bots, BOTS]
+note: "two connectors on one end: Nose chassis 12 and Nose bots 1"
