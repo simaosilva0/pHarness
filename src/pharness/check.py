@@ -14,10 +14,17 @@ from .rules.report import Report
 
 def check_project(root):
     """Read the project at `root` and check it. Returns the Report."""
+    report, _ = read_and_check(root)
+    return report
+
+
+def read_and_check(root):
+    """Read the project at `root` and check it. Returns the Report and the
+    Model, which is None when config.yaml or car.yaml cannot be read."""
     report = Report()
     project = load_project(root, report)
     if project is None:
-        return report
+        return report, None
 
     settings = check_config(project.config, report)
     model = read_model(project, settings, report)
@@ -27,4 +34,4 @@ def check_project(root):
     check_boxes(model, nets, report)
     check_routes(model, nets, report)
     check_accept(model, report)
-    return report
+    return report, model
