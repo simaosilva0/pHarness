@@ -3,6 +3,7 @@ the model built from them."""
 
 from .checks.config import check_config
 from .project.load import load_project
+from .project.read import read_model
 from .rules.report import Report
 
 
@@ -13,5 +14,6 @@ def check_project(root):
     if project is None:
         return report
 
-    check_config(project.config, report)
+    settings = check_config(project.config, report)
+    model = read_model(project, settings, report)
     return report
