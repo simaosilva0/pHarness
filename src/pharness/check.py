@@ -1,6 +1,7 @@
 """Running every check on a project, in order: the files, config.yaml, then
 the model built from them."""
 
+from .checks.accept import check_accept
 from .checks.boxes import check_boxes
 from .checks.car import check_car
 from .checks.config import check_config
@@ -25,4 +26,5 @@ def check_project(root):
     check_car(model, nets, report)
     check_boxes(model, nets, report)
     check_routes(model, nets, report)
+    check_accept(model, report)
     return report
