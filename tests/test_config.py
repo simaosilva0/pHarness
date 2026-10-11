@@ -7,7 +7,7 @@ CONFIG = "config.yaml"
 
 def test_an_unknown_field(project):
     project.add(CONFIG, "colour: auto\n")
-    assert project.broken() == [("field-known", "config.yaml:47")]
+    assert project.broken() == [("field-known", "config.yaml:51")]
 
 
 def test_a_setting_left_out(project):
@@ -33,7 +33,7 @@ def test_a_kind_without_types(project):
 
 def test_a_rule_left_out(project):
     project.replace(CONFIG, "  pin-order: warn\n", "")
-    assert project.broken() == [("config-fields", "config.yaml:32")]
+    assert project.broken() == [("config-fields", "config.yaml:35")]
 
 
 def test_a_field_of_the_wrong_shape(project):
@@ -127,26 +127,26 @@ def test_rule_levels(project):
 
 def test_a_rule_that_does_not_exist(project):
     project.replace(CONFIG, "  pin-order: warn\n", "  pin-order: warn\n  pin-orders: off\n")
-    assert project.broken() == [("rule-known", "config.yaml:42")]
+    assert project.broken() == [("rule-known", "config.yaml:45")]
 
 
 def test_a_level_that_does_not_exist(project):
     project.replace(CONFIG, "  pin-order: warn\n", "  pin-order: pass\n")
-    assert project.broken() == [("rule-level", "config.yaml:41")]
+    assert project.broken() == [("rule-level", "config.yaml:44")]
 
 
 def test_a_fixed_rule_cannot_change(project):
     project.replace(CONFIG, "  pin-order: warn\n", "  pin-order: warn\n  net-style: warn\n")
-    assert project.broken() == [("rule-fixed", "config.yaml:42")]
+    assert project.broken() == [("rule-fixed", "config.yaml:45")]
 
 
 # --- accepted entries ----------------------------------------------------------
 
 def test_an_accepted_entry_needs_a_reason(project):
     project.replace(CONFIG, "accept: {}\n", "accept:\n  to-reaches:\n    Nose.harness.A: ''\n")
-    assert ("accept-reason", "config.yaml:48") in project.broken()
+    assert ("accept-reason", "config.yaml:52") in project.broken()
 
 
 def test_a_fixed_rule_cannot_be_accepted(project):
     project.replace(CONFIG, "accept: {}\n", "accept:\n  net-style:\n    foo: no reason needed\n")
-    assert project.broken() == [("rule-fixed", "config.yaml:47")]
+    assert project.broken() == [("rule-fixed", "config.yaml:51")]

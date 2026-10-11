@@ -78,6 +78,14 @@ RULES = {
     "box-not-device": ERROR,
     "cable-style": ERROR,
 
+    # CONFIG.md, Colors
+    "palette-name": ERROR,
+    "color-mode": ERROR,
+    "color-name": ERROR,
+    "color-type": ERROR,
+    "colors-complete": ERROR,
+    "hv-orange": Rule("error", True),
+
     # CONFIG.md, Rule levels
     "rule-known": ERROR,
     "rule-level": ERROR,
@@ -120,6 +128,7 @@ RULES = {
     "cable-on-end": ERROR,
     "cable-far-pin": ERROR,
     "wire-fields": ERROR,
+    "wire-color": ERROR,
     "cable-used": Rule("warn", True),
     "to-cabled": Rule("warn", True),
 }

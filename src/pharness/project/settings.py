@@ -1,7 +1,8 @@
-"""What config.yaml sets, once checked: the styles, the sides and the kinds of
-type (CONFIG.md: Styles, Types). Checking and reading it is checks/config.py."""
+"""What config.yaml sets, once checked: the styles, the sides, the kinds of
+type and the colors (CONFIG.md: Styles, Types, Colors). Checking and reading
+it is checks/config.py."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 # The kinds are fixed, since the tool needs them; the words in them are the project's.
 KINDS = ["supply", "ground", "signal", "pair", "phase", "can", "lin", "rs485", "i2c",
@@ -36,3 +37,8 @@ class Settings:
     style: dict   # kind of name -> style, None when it was set wrong
     sides: list
     kinds: dict   # kind name -> Kind
+    palette: str | None = "striped"   # None when set wrong: colors are not judged
+    color: str | None = "auto"        # auto, fill or strict; None when set wrong
+    colors: dict = field(default_factory=dict)      # type -> color, as written
+    colors_at: dict = field(default_factory=dict)   # type -> file:line
+    colors_where: str = "config.yaml"               # where `colors` is, or `color`

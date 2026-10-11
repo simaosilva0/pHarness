@@ -28,6 +28,9 @@ types:
   chain:    {types: [chain]}
   no_net:   {types: [spare, unfitted]}
 
+palette: striped
+color: auto
+
 # Every adjustable rule, at its level (CONFIG.md, Rule levels).
 rules:
   conductor-one-end: warn
@@ -41,6 +44,7 @@ rules:
   pin-order: warn
   cable-used: warn
   to-cabled: warn
+  hv-orange: error
 
 # Entries known to break an adjustable rule, each with its reason.
 accept: {}

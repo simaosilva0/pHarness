@@ -1,9 +1,10 @@
 """Running every check on a project, in order: the files, config.yaml, then
-the model built from them: the car, the boxes, routes, cables, accept."""
+the model built from them: the car, the boxes, routes, cables, colors, accept."""
 
 from .checks.accept import check_accept
 from .checks.boxes import check_boxes
 from .checks.cables import check_cables
+from .checks.colors import check_colors
 from .checks.car import check_car
 from .checks.config import check_config
 from .checks.names import NetChecks
@@ -35,5 +36,6 @@ def read_and_check(root):
     check_boxes(model, nets, report)
     check_routes(model, nets, report)
     check_cables(model, nets, report)
+    check_colors(model, nets, report)
     check_accept(model, report)
     return report, model

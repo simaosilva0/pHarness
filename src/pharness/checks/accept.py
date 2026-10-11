@@ -47,4 +47,5 @@ def entries_by_rule(model):
         "device-used": devices,
         "to-cabled": pins,
         "cable-used": cables,
+        "hv-orange": list(model.settings.colors) + pins,
     }

@@ -1,15 +1,17 @@
-"""config.yaml: styles, sides, types, rule levels and accepted entries
-(CONFIG.md: Styles, Types, Rule levels)."""
+"""config.yaml: styles, sides, types, colors, rule levels and accepted entries
+(CONFIG.md: Styles, Types, Colors, Rule levels)."""
 
 import re
 
+from ..project.colors import MODES, PALETTES, in_palette
 from ..project.fields import check_fields, get_list, get_map, is_map, where
 from ..project.settings import KINDS, KINDS_WITHOUT_WORDS, RESERVED, Kind, Settings
 from ..project.styles import DEFAULT_STYLE, NET_STYLES, STYLES, is_net_word
 from ..rules.rules import LEVELS, RULES
 
 FILE = "config.yaml"
-CONFIG_FIELDS = ["style", "sides", "types", "rules", "accept"]
+CONFIG_FIELDS = ["style", "sides", "types", "palette", "color", "colors", "rules", "accept"]
+REQUIRED_FIELDS = ["style", "sides", "types", "palette", "color", "rules", "accept"]
 KIND_FIELDS = ["types", "label", "qualifiers"]
 
 
@@ -17,7 +19,7 @@ def check_config(config, report):
     """Every rule on config.yaml. Also sets the rule levels and accepted entries
     on the report, so call it before any other check."""
     check_fields(config, CONFIG_FIELDS, FILE, "config", report)
-    check_all_there(config, CONFIG_FIELDS, FILE, config.line, "config", report)
+    check_all_there(config, REQUIRED_FIELDS, FILE, config.line, "config", report)
     read_rule_levels(config, report)
     read_accepted(config, report)
 
@@ -27,7 +29,9 @@ def check_config(config, report):
 
     check_net_words(sides, kinds, style["net"], config, report)
     check_type_words(kinds, report)
-    return Settings(style, sides, kinds)
+    settings = Settings(style, sides, kinds)
+    read_colors(config, settings, report)
+    return settings
 
 
 # --- everything written -------------------------------------------------------
@@ -175,6 +179,51 @@ def may_be_in_both(word, in_kinds):
         return True
     with_qualifiers = [kind for kind in in_kinds if kind.qualifiers]
     return len(in_kinds) == 2 and len(with_qualifiers) == 1
+
+
+# --- colors --------------------------------------------------------------------
+
+def read_colors(config, settings, report):
+    """palette-name, color-mode, `colors` exactly under fill and strict, and
+    color-name on every color under `colors`. Sets them on the settings; a
+    palette or mode set wrong is None, so nothing is judged against it.
+    Whether each key is a type (color-type) needs the car: checks/colors.py."""
+    palette = config.get("palette")
+    if "palette" in config:
+        ok = report.check("palette-name", palette in PALETTES, where(FILE, config, "palette"),
+                          f"there is no palette {palette}; it is solid, striped or shaded")
+        settings.palette = palette if ok else None
+
+    mode = config.get("color")
+    if "color" in config:
+        ok = report.check("color-mode", mode in MODES, where(FILE, config, "color"),
+                          f"there is no color {mode}; it is auto, fill or strict")
+        settings.color = mode if ok else None
+
+    if settings.color is not None and "color" in config:
+        wants_colors = settings.color != "auto"
+        has_colors = "colors" in config
+        what = f"color: {mode} writes no colors" if not wants_colors else f"color: {mode} needs colors"
+        report.check("config-fields", has_colors == wants_colors, where(FILE, config, "color"), what)
+
+    if "colors" in config:
+        settings.colors_where = where(FILE, config, "colors")
+    elif "color" in config:
+        settings.colors_where = where(FILE, config, "color")
+
+    colors = get_map(config, "colors", FILE, report)
+    for type_, color in colors.items():
+        at = where(FILE, colors, type_)
+        settings.colors[str(type_)] = color
+        settings.colors_at[str(type_)] = at
+        if settings.palette is not None:
+            check_color_name(color, settings.palette, at, f"{type_}: ", report)
+
+
+def check_color_name(color, palette, at, what, report):
+    """color-name: a color of the palette, a stripe never its base's color."""
+    return report.check("color-name", in_palette(color, palette), at,
+                        f"{what}{color} is not a color of the {palette} palette")
 
 
 # --- rule levels and accepted entries -----------------------------------------
