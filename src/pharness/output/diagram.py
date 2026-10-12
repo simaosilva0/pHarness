@@ -13,7 +13,7 @@ BOX_SIZE = (12, 6)   # cells: boxes are bigger than devices
 DEVICE_SIZE = (8, 2)
 GAP = 2              # cells between devices
 SIDE_GAP = 6         # cells between a box and its column of devices
-BLOCK_GAP = 8        # cells between blocks
+BLOCK_GAP = 10       # cells between blocks, room for cables to pass on lines of their own
 
 
 @dataclass
@@ -22,6 +22,7 @@ class Node:
     kind: str           # "box" or "device"
     info: str           # a line under a box's name
     owner: str | None = None   # a device: the box whose column it sits in
+    cables: int = 0     # cables that end on it, so its sides have a cell for each
     x: int = 0
     y: int = 0
     w: int = 0
@@ -101,6 +102,10 @@ def build_diagram(model, cables):
             link.cables.append(CableOnLink(cable.name, wires.get(cable.name, 0)))
 
     diagram = Diagram(nodes, list(links.values()), groups_of(model, nodes))
+    by_name = {node.name: node for node in nodes}
+    for link in diagram.links:
+        for name in (link.a, link.b):
+            by_name[name].cables += len(link.cables)
     place(diagram)
     return diagram
 
@@ -145,55 +150,65 @@ def end_node(model, end):
 def place(diagram):
     """Give every node a position. A block is a box with its devices in a column
     beside it, so a cable to a device never crosses another device; blocks are
-    laid out in a grid, connected boxes next to each other in reading order.
-    Devices on no box share a last block."""
+    laid out in rows, connected boxes next to each other in reading order.
+    Devices on no box share a last block.
+
+    No two cables may run on one line, so room is made for them: a node is as
+    tall as it has cables to give each its own cell on a side, and the gap
+    between a box and its devices has a line for every cable."""
     by_name = {node.name: node for node in diagram.nodes}
     for node in diagram.nodes:
         node.w, node.h = BOX_SIZE if node.kind == "box" else DEVICE_SIZE
+        if node.kind == "device":
+            node.h = max(node.h, node.cables + 1)
 
     boxes = [node for node in diagram.nodes if node.kind == "box"]
     devices = [node for node in diagram.nodes if node.kind == "device"]
     owner = device_owners(diagram, by_name)
-
     for device in devices:
         device.owner = owner.get(device.name)
 
     blocks = []
     for box in order_boxes(diagram, boxes):
         members = [d for d in devices if owner.get(d.name) == box.name]
-        # one cell on the box's side for each cable to a device
-        box.h = max(box.h, 2 * math.ceil((len(members) + 2) / 2))
-        blocks.append((box, members))
+        # a cell on the box's side for each cable to a device, and for half of
+        # the rest, which have more sides to share
+        beside = sum(device.cables for device in members)
+        need = max(beside, math.ceil(box.cables / 2))
+        box.h = max(box.h, 2 * math.ceil((need + 2) / 2))
+        blocks.append((box, members, max(SIDE_GAP, beside + 3)))
     loose = [d for d in devices if d.name not in owner]
     if loose:
-        blocks.append((None, loose))
+        blocks.append((None, loose, SIDE_GAP))
 
     columns = max(1, math.ceil(math.sqrt(len(blocks) * 1.5)))
-    block_width = BOX_SIZE[0] + SIDE_GAP + DEVICE_SIZE[0]
-
     y = 0
     for start in range(0, len(blocks), columns):
         row = blocks[start:start + columns]
         height = 0
-        for index, (box, members) in enumerate(row):
-            height = max(height, place_block(box, members, index * (block_width + BLOCK_GAP), y))
+        x = 0
+        for box, members, gap in row:
+            height = max(height, place_block(box, members, x, y, gap))
+            x += (box.w if box is not None else 0) + gap + DEVICE_SIZE[0] + BLOCK_GAP
         y += height + BLOCK_GAP
 
 
-def place_block(box, members, x, y):
-    """Put a box at (x, y) and its devices in a column to its right. Returns the
-    block's height."""
+def place_block(box, members, x, y, gap):
+    """Put a box at (x, y) and its devices in a column `gap` cells to its right.
+    Returns the block's height."""
     left = x
     height = 0
     if box is not None:
         box.x, box.y = x, y
-        left = x + box.w + SIDE_GAP
+        left = x + box.w + gap
         height = box.h
-    for index, device in enumerate(members):
+    top = y
+    for device in members:
         device.x = left
-        device.y = y + index * (device.h + GAP)
+        device.y = top
+        top += device.h + GAP
     if members:
-        height = max(height, len(members) * (DEVICE_SIZE[1] + GAP) - GAP)
+        height = max(height, top - GAP - y)
     return height
 
 

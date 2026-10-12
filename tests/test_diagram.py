@@ -38,7 +38,7 @@ def test_boxes_are_bigger_than_devices(project):
         if node.kind == "box":
             assert node.w == BOX_SIZE[0] and node.h >= BOX_SIZE[1]
         else:
-            assert (node.w, node.h) == DEVICE_SIZE
+            assert node.w == DEVICE_SIZE[0] and node.h >= DEVICE_SIZE[1]
 
 
 def test_no_two_nodes_overlap(project):
@@ -146,3 +146,20 @@ def test_the_car_tab_can_search_and_export(project):
     page = render_page(pinout_of(project)[1])
     assert "function saveSvg" in page and "function savePng" in page
     assert 'type: "search"' in page
+
+
+def test_a_device_has_a_cell_on_its_side_for_each_cable(project):
+    nodes = diagram_of(project).nodes
+    assert any(node.kind == "device" and node.cables > 1 for node in nodes)
+    for node in nodes:
+        if node.kind == "device":
+            assert node.h >= node.cables + 1
+
+
+def test_the_gap_beside_a_box_has_a_line_for_each_cable_to_its_devices(project):
+    nodes = {node.name: node for node in diagram_of(project).nodes}
+    for node in nodes.values():
+        if node.kind == "device" and node.owner is not None:
+            owner = nodes[node.owner]
+            beside = sum(other.cables for other in nodes.values() if other.owner == owner.name)
+            assert node.x - (owner.x + owner.w) >= beside + 3
