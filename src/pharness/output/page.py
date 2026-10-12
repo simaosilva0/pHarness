@@ -13,6 +13,7 @@ from html import escape
 
 from .diagram import GRID
 from .diagram_script import SCRIPT
+from .theme_script import THEME_BUTTON, THEME_RESTORE
 
 # Each column's share of the width, the same in every connector's table.
 COLUMNS = [
@@ -56,7 +57,7 @@ STYLE = """
   --unused: #9aa0a8;
 }
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #16181c;
     --fg: #e4e6ea;
     --muted: #9aa0a8;
@@ -68,6 +69,24 @@ STYLE = """
     --unused: #6a6f78;
   }
 }
+:root[data-theme="dark"] {
+  --bg: #16181c;
+  --fg: #e4e6ea;
+  --muted: #9aa0a8;
+  --line: #33373e;
+  --head: #20232a;
+  --link: #7fb0ff;
+  --warn-bg: #3a2e12;
+  --warn-fg: #f2c66b;
+  --unused: #6a6f78;
+}
+:root { color-scheme: light dark; }
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+header { position: relative; }
+button.theme { position: absolute; right: 0; top: 0; font: inherit; padding: 0.2rem 0.7rem; border: 1px solid var(--line);
+               border-radius: 4px; background: var(--head); color: var(--fg); cursor: pointer; }
+button.theme:hover { border-color: var(--muted); }
 body {
   margin: 0 auto;
   max-width: 72rem;
@@ -127,6 +146,11 @@ body:has(#car:target, #car :target) nav.tabs a[href="#car"] {
 .filter .chip { background: var(--head); font-weight: 600; }
 .filter .chip.off { background: var(--bg); color: var(--muted); font-weight: 400; text-decoration: line-through; }
 .filter label { margin: 0 0.4rem; user-select: none; cursor: pointer; }
+.filter .search { font: inherit; padding: 0.1rem 0.5rem; border: 1px solid var(--line); border-radius: 4px;
+                 background: var(--bg); color: var(--fg); width: 13rem; margin-left: auto; }
+.filter .search.nomatch { border-color: #d32f2f; }
+.car-node.found rect { animation: found 1.4s ease-out; }
+@keyframes found { 0%, 60% { stroke: var(--link); stroke-width: 6; } 100% { } }
 .hint { margin: 0.4rem 0 0; font-size: 0.85rem; }
 .car-marquee { fill: var(--link); fill-opacity: 0.12; stroke: var(--link); stroke-dasharray: 4 3; pointer-events: none; }
 .car-node.selected rect { stroke: var(--link); stroke-width: 3; }
@@ -160,7 +184,7 @@ body:has(#car:target, #car :target) nav.tabs a[href="#car"] {
 .car-info { fill: var(--muted); font: 11px system-ui, sans-serif; }
 @media print {
   body { max-width: none; padding: 0; font-size: 11px; }
-  nav.tabs { display: none; }
+  nav.tabs, button.theme { display: none; }
   section.panel { display: block !important; }
   section.box, section.panel, section.cable { break-before: page; }
   .connector { break-inside: avoid; }
@@ -176,7 +200,7 @@ def render_page(pinout):
     if pinout.cables:
         tabs.append(("cables", f"Cables ({len(pinout.cables)})", render_cables(pinout, anchors)))
     if pinout.diagram is not None and pinout.diagram.nodes:
-        tabs.append(("car", "Car", render_car(pinout.diagram)))
+        tabs.append(("car", "Car", render_car(pinout.diagram, anchors)))
     tabs.append(("warnings", f"Warnings ({len(pinout.warnings)})", render_warnings(pinout, anchors)))
     if pinout.colors:
         tabs.append(("config", "Config", render_legend(pinout)))
@@ -190,6 +214,7 @@ def render_page(pinout):
         '<meta name="viewport" content="width=device-width, initial-scale=1">',
         f"<title>{text(pinout.car)} pinout</title>",
         f"<style>{STYLE}</style>",
+        f"<script>{THEME_RESTORE}</script>",
         "</head>",
         "<body>",
         render_header(pinout),
@@ -197,6 +222,7 @@ def render_page(pinout):
     ]
     for name, _, content in tabs:
         parts.append(f'<section class="panel" id="{name}">\n{content}\n</section>')
+    parts.append(f"<script>{THEME_BUTTON}</script>")
     if any(name == "car" for name, _, _ in tabs):
         parts.append(f"<script>{SCRIPT}</script>")
     parts.append("</body>")
@@ -214,14 +240,23 @@ def render_header(pinout):
         counts += (f" · {count(len(pinout.cables), 'cable', 'cables')} · "
                    f"{count(pinout.wire_count(), 'wire', 'wires')}")
     return (f"<header><h1>{text(pinout.car)} pinout</h1>"
+            '<button class="theme" id="theme" title="Switch between light and dark"></button>'
             f'<div class="muted">{counts}</div></header>')
 
 
-def render_car(diagram):
+def render_car(diagram, anchors=None):
     """The car tab: an empty drawing with the diagram's data beside it, which
-    the script draws. The data is JSON with `<` escaped, so no value can end
-    its tag."""
-    data = json.dumps(diagram.as_data()).replace("<", "\\u003c")
+    the script draws. With `anchors`, a box and a cable know their sections.
+    The data is JSON with `<` escaped, so no value can end its tag."""
+    data = diagram.as_data()
+    if anchors is not None:
+        for node in data["nodes"]:
+            if node["kind"] == "box":
+                node["href"] = anchors["box"].get(node["name"])
+        for link in data["links"]:
+            for cable in link["cables"]:
+                cable["href"] = anchors["cable"].get(cable["name"])
+    data = json.dumps(data).replace("<", "\\u003c")
     return ('<div id="car-filter" class="filter"></div>'
             '<div class="stage">'
             '<svg id="car-svg" xmlns="http://www.w3.org/2000/svg">'
@@ -236,9 +271,10 @@ def render_car(diagram):
             '<div class="zoom"><button id="car-zoom-out" title="Zoom out">−</button>'
             '<button id="car-fit" title="Fit the whole car">Fit</button>'
             '<button id="car-zoom-in" title="Zoom in">+</button></div></div>'
-            '<p class="muted hint">Drag on empty space to select, then drag a selected box to move them all '
-            '(shift adds or removes one). Drag the view with the middle or right button, or hold Space or Alt. '
-            'The wheel zooms.</p>'
+            '<p class="muted hint">Click a box or device to open its pinout or cable. Drag on empty space to select, '
+            'then drag a selected box to move them all (shift adds or removes one). Drag a cable to move its '
+            'middle run, double-click it to put it back. Drag the view with the middle or right button, or hold '
+            'Space or Alt. The wheel zooms.</p>'
             f'<script type="application/json" id="car-data">{data}</script>')
 
 

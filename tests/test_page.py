@@ -153,3 +153,10 @@ def test_without_cables_no_cable_section(project):
     assert 'id="cables"' not in page
     assert 'id="config"' not in page
     assert "216 pins</div>" in page
+
+
+def test_the_page_has_a_light_and_dark_switch(project):
+    page = page_of(project)
+    assert '<button class="theme" id="theme"' in page
+    assert ':root[data-theme="dark"]' in page and '[data-theme="light"]' in page
+    assert "pharness-theme" in page
