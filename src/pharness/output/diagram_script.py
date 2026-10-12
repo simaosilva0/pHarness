@@ -134,33 +134,22 @@ SCRIPT = r"""
     return list;
   }
 
-  function draw() {
+  var cablesLayer, nodesLayer;
+  var groups = {};
+  var current = null;   // what is pointed at: a node, a cable's item or null
+
+  // The grid and the nodes, once. Nodes are only moved afterwards, so a node
+  // being dragged keeps its pointer.
+  function build() {
     while (world.firstChild) world.removeChild(world.firstChild);
     var grid = make("rect", { x: -8000, y: -8000, width: 16000, height: 16000, fill: "url(#car-grid)" }, world);
     grid.setAttribute("class", "car-grid");
-
-    var list = items();
-    ports(list);
-    overLanes = 0;
-    drawn = [];
-    var cables = make("g", { "class": "car-cables" }, world);
-    list.forEach(function (item) {
-      var points = route(item);
-      if (!points) return;
-      var path = points.map(function (pt) { return (pt[0] * G) + "," + (pt[1] * G); }).join(" ");
-      var line = make("polyline", { points: path, "stroke-width": thickness(item.wires) }, cables);
-      line.setAttribute("class", "car-cable");
-      // a wider line, drawn on top and invisible, so a thin cable is easy to point at
-      var hit = make("polyline", { points: path, "stroke-width": Math.max(thickness(item.wires), 12) }, cables);
-      hit.setAttribute("class", "car-hit");
-      hit.addEventListener("pointerenter", function (event) { focus(item); tip(item, event); });
-      hit.addEventListener("pointermove", function (event) { tip(item, event); });
-      hit.addEventListener("pointerleave", function () { focus(null); tip(null); });
-      drawn.push({ item: item, line: line });
-    });
+    cablesLayer = make("g", { "class": "car-cables" }, world);
+    nodesLayer = make("g", {}, world);
 
     data.nodes.forEach(function (node) {
-      var group = make("g", { transform: "translate(" + node.x * G + "," + node.y * G + ")" }, world);
+      var group = make("g", { transform: place(node) }, nodesLayer);
+      groups[node.name] = group;
       group.setAttribute("class", "car-node car-" + node.kind);
       make("rect", { width: node.w * G, height: node.h * G, rx: 6 }, group);
       var label = make("text", { x: node.w * G / 2, y: node.kind === "box" ? node.h * G / 2 - 4 : node.h * G / 2 + 4,
@@ -174,8 +163,78 @@ SCRIPT = r"""
       }
       group.addEventListener("pointerenter", function () { focus(node); });
       group.addEventListener("pointerleave", function () { focus(null); });
+      dragging(node, group);
+    });
+  }
+
+  function place(node) {
+    return "translate(" + node.x * G + "," + node.y * G + ")";
+  }
+
+  // The cables, again: when a node moves or a switch changes.
+  function drawCables() {
+    while (cablesLayer.firstChild) cablesLayer.removeChild(cablesLayer.firstChild);
+    var list = items();
+    ports(list);
+    overLanes = 0;
+    drawn = [];
+    list.forEach(function (item) {
+      var points = route(item);
+      if (!points) return;
+      var path = points.map(function (pt) { return (pt[0] * G) + "," + (pt[1] * G); }).join(" ");
+      var line = make("polyline", { points: path, "stroke-width": thickness(item.wires) }, cablesLayer);
+      line.setAttribute("class", "car-cable");
+      // a wider line, drawn on top and invisible, so a thin cable is easy to point at
+      var hit = make("polyline", { points: path, "stroke-width": Math.max(thickness(item.wires), 12) }, cablesLayer);
+      hit.setAttribute("class", "car-hit");
+      hit.addEventListener("pointerenter", function (event) { focus(item); tip(item, event); });
+      hit.addEventListener("pointermove", function (event) { tip(item, event); });
+      hit.addEventListener("pointerleave", function () { focus(null); tip(null); });
+      drawn.push({ item: item, line: line });
     });
     svg.classList.toggle("hide-cables", !options.show);
+    if (current && !current.kind) current = null;   // a cable of the old drawing is gone
+    focus(current);
+  }
+
+  // --- moving nodes ---------------------------------------------------------
+
+  function overlaps(node, x, y) {
+    return data.nodes.some(function (other) {
+      return other !== node && x < other.x + other.w && other.x < x + node.w
+        && y < other.y + other.h && other.y < y + node.h;
+    });
+  }
+
+  // A node follows the pointer one cell at a time and stays where it does not
+  // overlap another; the cables follow it.
+  function dragging(node, group) {
+    var drag = null;
+    group.addEventListener("pointerdown", function (event) {
+      if (event.button) return;
+      event.stopPropagation();
+      group.setPointerCapture(event.pointerId);
+      drag = { id: event.pointerId, sx: event.clientX, sy: event.clientY, x: node.x, y: node.y };
+      group.classList.add("moving");
+    });
+    group.addEventListener("pointermove", function (event) {
+      if (!drag || drag.id !== event.pointerId) return;
+      var x = drag.x + Math.round((event.clientX - drag.sx) / view.k / G);
+      var y = drag.y + Math.round((event.clientY - drag.sy) / view.k / G);
+      if ((x === node.x && y === node.y) || overlaps(node, x, y)) return;
+      node.x = x;
+      node.y = y;
+      group.setAttribute("transform", place(node));
+      drawCables();
+    });
+    function drop(event) {
+      if (!drag || drag.id !== event.pointerId) return;
+      drag = null;
+      group.classList.remove("moving");
+      save();
+    }
+    group.addEventListener("pointerup", drop);
+    group.addEventListener("pointercancel", drop);
   }
 
   // --- hover ----------------------------------------------------------------
@@ -184,6 +243,7 @@ SCRIPT = r"""
   // switched off) or a cable (it lights up, and shows its name when cables are
   // shown). The rest dims.
   function focus(target) {
+    current = target;
     svg.classList.toggle("focus", target !== null);
     drawn.forEach(function (entry) {
       var hot = target !== null && (target === entry.item || target.name === entry.item.a || target.name === entry.item.b);
@@ -205,6 +265,60 @@ SCRIPT = r"""
     tooltip.style.top = (event.clientY - box.top + 14) + "px";
   }
 
+  // --- memory ---------------------------------------------------------------
+
+  // What the page remembers in this browser: where the nodes were left, the
+  // view and the switches. A different set of boxes and devices is a different
+  // car and starts from the default layout.
+  function hash(text) {
+    var h = 0;
+    for (var i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) | 0;
+    return (h >>> 0).toString(16);
+  }
+  var storeKey = "pharness-car:" + document.title + ":" +
+    hash(data.nodes.map(function (n) { return n.name; }).sort().join("\n"));
+
+  function whole(value) {
+    return typeof value === "number" && isFinite(value) && Math.round(value) === value;
+  }
+
+  data.nodes.forEach(function (node) { node.dx = node.x; node.dy = node.y; });
+  var restored = false;
+  try {
+    var saved = JSON.parse(localStorage.getItem(storeKey));
+    if (saved) {
+      data.nodes.forEach(function (node) {
+        var at = saved.nodes && saved.nodes[node.name];
+        if (at && whole(at[0]) && whole(at[1])) { node.x = at[0]; node.y = at[1]; }
+      });
+      if (saved.options) {
+        options.show = saved.options.show !== false;
+        options.bundled = saved.options.bundled !== false;
+      }
+      var v = saved.view;
+      if (v && isFinite(v.x) && isFinite(v.y) && isFinite(v.k) && v.k >= MIN_K && v.k <= MAX_K) {
+        view = { x: v.x, y: v.y, k: v.k };
+        restored = true;
+      }
+    }
+  } catch (e) { /* no memory here: the default layout */ }
+
+  function save() {
+    try {
+      var moved = {};
+      data.nodes.forEach(function (node) {
+        if (node.x !== node.dx || node.y !== node.dy) moved[node.name] = [node.x, node.y];
+      });
+      localStorage.setItem(storeKey, JSON.stringify({ nodes: moved, view: view, options: options }));
+    } catch (e) { /* blocked or full: nothing is kept */ }
+  }
+
+  var saving = null;
+  function saveSoon() {
+    clearTimeout(saving);
+    saving = setTimeout(save, 300);
+  }
+
   // --- switches -------------------------------------------------------------
 
   function bind(id, name) {
@@ -213,16 +327,29 @@ SCRIPT = r"""
     input.addEventListener("change", function () {
       options[name] = input.checked;
       tip(null);
-      draw();
+      drawCables();
+      save();
     });
   }
   bind("car-show", "show");
   bind("car-bundled", "bundled");
 
+  document.getElementById("car-reset").addEventListener("click", function () {
+    data.nodes.forEach(function (node) {
+      node.x = node.dx;
+      node.y = node.dy;
+      groups[node.name].setAttribute("transform", place(node));
+    });
+    drawCables();
+    fit();
+    save();
+  });
+
   // --- zoom and pan ---------------------------------------------------------
 
-  function apply() {
+  function apply(quiet) {
     world.setAttribute("transform", "translate(" + view.x + "," + view.y + ") scale(" + view.k + ")");
+    if (!quiet) saveSoon();
   }
 
   function zoomAt(px, py, factor) {
@@ -234,7 +361,7 @@ SCRIPT = r"""
     apply();
   }
 
-  function fit() {
+  function fit(quiet) {
     var box = svg.getBoundingClientRect();
     if (!box.width || !box.height || !data.nodes.length) return false;
     var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -248,7 +375,7 @@ SCRIPT = r"""
     view.k = Math.max(MIN_K, Math.min(MAX_K, k));
     view.x = (box.width - width * view.k) / 2 - minX * G * view.k;
     view.y = (box.height - height * view.k) / 2 - minY * G * view.k;
-    apply();
+    apply(quiet);
     return true;
   }
 
@@ -304,11 +431,13 @@ SCRIPT = r"""
   document.getElementById("car-zoom-out").addEventListener("click", function () { center(0.8); });
   document.getElementById("car-fit").addEventListener("click", fit);
 
-  draw();
+  build();
+  drawCables();
+  apply(true);
   // The tab is hidden until opened, so there is no size to fit to before that.
-  var fitted = false;
+  var fitted = restored;
   new ResizeObserver(function () {
-    if (!fitted) fitted = fit();
+    if (!fitted) fitted = fit(true);
   }).observe(svg);
 })();
 """

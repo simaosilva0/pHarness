@@ -123,11 +123,15 @@ body:has(#car:target, #car :target) nav.tabs a[href="#car"] {
 .zoom { position: absolute; right: 0.6rem; bottom: 0.6rem; display: flex; gap: 0.25rem; }
 .zoom button { font: inherit; padding: 0.2rem 0.6rem; border: 1px solid var(--line); border-radius: 4px;
                background: var(--head); color: var(--fg); cursor: pointer; }
-.zoom button:hover { border-color: var(--muted); }
+.switches button:hover, .zoom button:hover { border-color: var(--muted); }
 .car-grid-line { stroke: var(--line); stroke-width: 1; opacity: 0.55; }
 .switches { position: absolute; right: 0.6rem; top: 0.6rem; display: flex; gap: 0.9rem; padding: 0.3rem 0.7rem;
             border: 1px solid var(--line); border-radius: 4px; background: var(--head); }
 .switches label { cursor: pointer; user-select: none; }
+.switches button { font: inherit; padding: 0 0.5rem; border: 1px solid var(--line); border-radius: 4px;
+                   background: var(--bg); color: var(--fg); cursor: pointer; }
+.car-node { cursor: move; }
+.car-node.moving rect { stroke: var(--link); }
 .tip { position: absolute; z-index: 2; pointer-events: none; white-space: pre; padding: 0.25rem 0.5rem;
        border: 1px solid var(--line); border-radius: 4px; background: var(--head); font-size: 0.85rem; }
 .car-cable { fill: none; stroke: var(--muted); stroke-linejoin: round; stroke-linecap: butt; opacity: 0.8; }
@@ -215,7 +219,8 @@ def render_car(diagram):
             '<g id="car-world"></g></svg>'
             '<div class="switches">'
             '<label><input type="checkbox" id="car-show"> Cables</label>'
-            '<label><input type="checkbox" id="car-bundled"> Bundled</label></div>'
+            '<label><input type="checkbox" id="car-bundled"> Bundled</label>'
+            '<button id="car-reset" title="Put every box and device back where the tool placed it">Reset layout</button></div>'
             '<div id="car-tip" class="tip" hidden></div>'
             '<div class="zoom"><button id="car-zoom-out" title="Zoom out">−</button>'
             '<button id="car-fit" title="Fit the whole car">Fit</button>'

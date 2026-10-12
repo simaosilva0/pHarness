@@ -93,5 +93,5 @@ def test_a_name_cannot_end_the_data_tag():
 
 def test_the_car_tab_has_its_switches_and_tooltip(project):
     page = render_page(pinout_of(project)[1])
-    for id_ in ["car-show", "car-bundled", "car-tip"]:
+    for id_ in ["car-show", "car-bundled", "car-reset", "car-tip"]:
         assert f'id="{id_}"' in page
