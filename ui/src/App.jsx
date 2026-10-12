@@ -6,6 +6,7 @@ import CarNode from "./CarNode.jsx";
 import CableEdge from "./CableEdge.jsx";
 import Toolbar from "./Toolbar.jsx";
 import { plan } from "./routing.js";
+import { sizeOf } from "./sizes.js";
 import { load, save, storeKeyFor } from "./store.js";
 import { savePng, saveSvg, svgOf } from "./exporting.js";
 
@@ -40,7 +41,7 @@ function Car({ data }) {
 
   const home = useMemo(() => data.nodes.map((n) => ({
     id: n.name, type: "car", position: { x: n.x * grid, y: n.y * grid },
-    data: { ...n, w: n.w * grid, h: n.h * grid },
+    data: n,
   })), [data, grid]);
   const [nodes, setNodes, onNodesChange] = useNodesState(home.map((n) => {
     const at = saved.moved[n.id];
@@ -49,6 +50,8 @@ function Car({ data }) {
 
   const [hidden, setHidden] = useState(saved.hidden);
   const [options, setOptions] = useState({ show: true, bundled: true, devices: true, text: 1, ...saved.options });
+  const sizes = useMemo(() => Object.fromEntries(data.nodes.map((n) => [n.name, sizeOf(n, grid, options.text)])),
+    [data, grid, options.text]);
   const [setup, setSetup] = useState(saved.setup);   // what the user did to a cable: {s, t}
   const [hover, setHover] = useState(null);
   const [tip, setTip] = useState(null);
@@ -57,8 +60,8 @@ function Car({ data }) {
 
   const isHidden = (n) => hidden[n.id] || (n.data.kind === "device" && !options.devices);
   const shownNodes = useMemo(() => nodes.map((n) => ({
-    ...n, hidden: !!isHidden(n), data: { ...n.data, found: found === n.id },
-  })), [nodes, hidden, options.devices, found]);
+    ...n, hidden: !!isHidden(n), data: { ...n.data, ...sizes[n.id], found: found === n.id },
+  })), [nodes, hidden, options.devices, found, sizes]);
 
   // What is remembered, a moment after the last change.
   const view = useRef(saved.viewport);
@@ -85,7 +88,7 @@ function Car({ data }) {
   }, [data, options.bundled]);
 
   const edges = useMemo(() => {
-    const at = Object.fromEntries(nodes.map((n) => [n.id, { x: n.position.x, y: n.position.y, w: n.data.w, h: n.data.h }]));
+    const at = Object.fromEntries(nodes.map((n) => [n.id, { x: n.position.x, y: n.position.y, ...sizes[n.id] }]));
     return plan(items, at, setup).map(({ item, s, t }) => ({
       id: item.key, source: item.a, target: item.b, sourceHandle: s, targetHandle: t, type: "cable",
       style: { strokeWidth: thickness(item.wires) },
@@ -93,7 +96,7 @@ function Car({ data }) {
       className: hover && (hover === item.key || hover === item.a || hover === item.b) ? "hot" : hover ? "dim" : "",
       data: { item },
     }));
-  }, [items, nodes, setup, hover]);
+  }, [items, nodes, setup, hover, sizes]);
 
   // A cable end dropped on a handle of the node it was on goes to that side and
   // slot, and stays there; the other end is left as it was.
@@ -137,7 +140,7 @@ function Car({ data }) {
     if (hit.kind === "device") setOptions((o) => ({ ...o, devices: true }));
     setNodes((all) => all.map((n) => ({ ...n, selected: n.id === hit.name })));
     const at = nodes.find((n) => n.id === hit.name);
-    setTimeout(() => flow.setCenter(at.position.x + at.data.w / 2, at.position.y + at.data.h / 2,
+    setTimeout(() => flow.setCenter(at.position.x + sizes[at.id].w / 2, at.position.y + sizes[at.id].h / 2,
       { zoom: Math.max(flow.getZoom(), 0.8), duration: 300 }), 50);
     setFound(hit.name);
     setTimeout(() => setFound(null), 1500);
