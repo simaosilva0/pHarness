@@ -1,0 +1,199 @@
+"""The car as a diagram: a node for every box and device, a link for every pair
+of nodes a cable joins, and where each node sits by default.
+
+Nothing here knows about HTML or drawing. page.py hands this to the script that
+draws it. Positions are in grid cells.
+"""
+
+import math
+from dataclasses import dataclass, field
+
+GRID = 20            # pixels in a cell, at zoom 1
+BOX_SIZE = (12, 6)   # cells: boxes are bigger than devices
+DEVICE_SIZE = (8, 2)
+GAP = 2              # cells between devices
+SIDE_GAP = 6         # cells between a box and its column of devices
+BLOCK_GAP = 8        # cells between blocks
+
+
+@dataclass
+class Node:
+    name: str
+    kind: str           # "box" or "device"
+    info: str           # a line under a box's name
+    x: int = 0
+    y: int = 0
+    w: int = 0
+    h: int = 0
+
+
+@dataclass
+class CableOnLink:
+    name: str
+    wires: int
+
+
+@dataclass
+class Link:
+    """What joins two nodes: every cable that has an end on each."""
+
+    a: str
+    b: str
+    cables: list = field(default_factory=list)   # [CableOnLink]
+
+    @property
+    def wires(self):
+        return sum(cable.wires for cable in self.cables)
+
+
+@dataclass
+class Diagram:
+    nodes: list         # [Node]
+    links: list         # [Link]
+
+    def as_data(self):
+        """The diagram as plain data, for the script that draws it."""
+        return {
+            "grid": GRID,
+            "nodes": [vars(node) for node in self.nodes],
+            "links": [{"a": link.a, "b": link.b, "wires": link.wires,
+                       "cables": [vars(cable) for cable in link.cables]}
+                      for link in self.links],
+        }
+
+
+def build_diagram(model, cables):
+    """The diagram of a checked project. `cables` are the cable tables, which
+    know how many wires each cable has."""
+    nodes = []
+    for box in model.boxes:
+        pins = sum(len(connector.pins) for connector in box.connectors)
+        info = f"{len(box.connectors)} connectors · {pins} pins"
+        nodes.append(Node(box.name, "box", info))
+    for name in model.car.devices:
+        nodes.append(Node(name, "device", ""))
+
+    wires = {table.name: len(table.wires) for table in cables}
+    links = {}
+    for cable in model.cables:
+        ends = []
+        for end in cable.ends:
+            node = end_node(model, end)
+            if node is not None and node not in ends:
+                ends.append(node)
+        # a cable is a star from its first end to the others; an end in the
+        # same box as the first is no link
+        for other in ends[1:]:
+            key = tuple(sorted((ends[0], other)))
+            link = links.setdefault(key, Link(*key))
+            link.cables.append(CableOnLink(cable.name, wires.get(cable.name, 0)))
+
+    diagram = Diagram(nodes, list(links.values()))
+    place(diagram)
+    return diagram
+
+
+def end_node(model, end):
+    """The node a cable end is: its box for a connector, else the device."""
+    found = model.connector(end)
+    if found is not None:
+        return found[0].name
+    if model.is_device(end):
+        return end
+    return None
+
+
+# --- default positions --------------------------------------------------------------
+
+def place(diagram):
+    """Give every node a position. A block is a box with its devices in a column
+    beside it, so a cable to a device never crosses another device; blocks are
+    laid out in a grid, connected boxes next to each other in reading order.
+    Devices on no box share a last block."""
+    by_name = {node.name: node for node in diagram.nodes}
+    for node in diagram.nodes:
+        node.w, node.h = BOX_SIZE if node.kind == "box" else DEVICE_SIZE
+
+    boxes = [node for node in diagram.nodes if node.kind == "box"]
+    devices = [node for node in diagram.nodes if node.kind == "device"]
+    owner = device_owners(diagram, by_name)
+
+    blocks = []
+    for box in order_boxes(diagram, boxes):
+        members = [d for d in devices if owner.get(d.name) == box.name]
+        # one cell on the box's side for each cable to a device
+        box.h = max(box.h, 2 * math.ceil((len(members) + 2) / 2))
+        blocks.append((box, members))
+    loose = [d for d in devices if d.name not in owner]
+    if loose:
+        blocks.append((None, loose))
+
+    columns = max(1, math.ceil(math.sqrt(len(blocks) * 1.5)))
+    block_width = BOX_SIZE[0] + SIDE_GAP + DEVICE_SIZE[0]
+
+    y = 0
+    for start in range(0, len(blocks), columns):
+        row = blocks[start:start + columns]
+        height = 0
+        for index, (box, members) in enumerate(row):
+            height = max(height, place_block(box, members, index * (block_width + BLOCK_GAP), y))
+        y += height + BLOCK_GAP
+
+
+def place_block(box, members, x, y):
+    """Put a box at (x, y) and its devices in a column to its right. Returns the
+    block's height."""
+    left = x
+    height = 0
+    if box is not None:
+        box.x, box.y = x, y
+        left = x + box.w + SIDE_GAP
+        height = box.h
+    for index, device in enumerate(members):
+        device.x = left
+        device.y = y + index * (device.h + GAP)
+    if members:
+        height = max(height, len(members) * (DEVICE_SIZE[1] + GAP) - GAP)
+    return height
+
+
+def device_owners(diagram, by_name):
+    """The box each device sits under: the box it shares the most wires with,
+    the first one in reading order on a tie. A device with no box is absent."""
+    weight = {}
+    for link in diagram.links:
+        for device, other in ((link.a, link.b), (link.b, link.a)):
+            if by_name[device].kind == "device" and by_name[other].kind == "box":
+                weight.setdefault(device, {})
+                weight[device][other] = weight[device].get(other, 0) + max(link.wires, 1)
+    order = [node.name for node in diagram.nodes]
+    owner = {}
+    for device, boxes in weight.items():
+        owner[device] = max(boxes, key=lambda box: (boxes[box], -order.index(box)))
+    return owner
+
+
+def order_boxes(diagram, boxes):
+    """The boxes in an order that keeps connected ones close: start from the
+    box with the most wires, then follow the strongest link to a box not yet
+    placed; a separate group starts from its own busiest box."""
+    names = {box.name for box in boxes}
+    strength = {name: {} for name in names}
+    for link in diagram.links:
+        if link.a in names and link.b in names:
+            strength[link.a][link.b] = strength[link.a].get(link.b, 0) + link.wires
+            strength[link.b][link.a] = strength[link.b].get(link.a, 0) + link.wires
+    total = {name: sum(neighbours.values()) for name, neighbours in strength.items()}
+    reading = [box.name for box in boxes]
+
+    done = []
+    while len(done) < len(boxes):
+        left = [name for name in reading if name not in done]
+        if not any(name in strength[d] for d in done for name in left):
+            done.append(max(left, key=lambda name: (total[name], -reading.index(name))))
+            continue
+        best = max(((strength[d][name], -reading.index(name), name)
+                    for d in done for name in left if name in strength[d]))
+        done.append(best[2])
+    by_name = {box.name: box for box in boxes}
+    return [by_name[name] for name in done]

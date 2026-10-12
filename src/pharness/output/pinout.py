@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from ..project.chains import chain_taps
 from ..project.colors import Colors
 from ..project.labels import split_type, wire_label
+from .diagram import build_diagram
 
 
 @dataclass
@@ -99,6 +100,7 @@ class Pinout:
     warnings: list   # every warning of the report, in file and line order
     cables: list = field(default_factory=list)   # [CableTable], in reading order
     colors: list = field(default_factory=list)   # [ColorRow], every type on a wire
+    diagram: object = None                       # diagram.Diagram, the car as nodes and links
 
     def wire_count(self):
         return sum(len(cable.wires) for cable in self.cables)
@@ -125,7 +127,8 @@ def build_pinout(model, report):
     boxes = [box_pinout(model, colors, taps, box, warnings) for box in model.boxes]
     cables = [cable_table(model, colors, taps, cable) for cable in model.cables]
     legend = color_legend(colors, cables)
-    return Pinout(model.car.data.get("car"), boxes, warnings, cables, legend)
+    diagram = build_diagram(model, cables)
+    return Pinout(model.car.data.get("car"), boxes, warnings, cables, legend, diagram)
 
 
 def box_pinout(model, colors, taps, box, warnings):
