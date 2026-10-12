@@ -1,13 +1,18 @@
-"""The pinout as one HTML page: offline, no scripts, the styles inline. Four
-tabs: boxes, cables, warnings and config (the wire colors). A tab is shown
+"""The pinout as one HTML page: offline, the styles and the one script inline.
+Five tabs: boxes, cables, car (the diagram), warnings and config (the wire
+colors). The script draws the car tab and nothing else. A tab is shown
 when it, or something in it, is the page's target, so every link opens the tab
 it points into; with no target the boxes are shown.
 
 Every value from the project goes through text(), which escapes it.
 """
 
+import json
 import re
 from html import escape
+
+from .diagram import GRID
+from .diagram_script import SCRIPT
 
 # Each column's share of the width, the same in every connector's table.
 COLUMNS = [
@@ -107,6 +112,38 @@ body:has(#warnings:target, #warnings :target) nav.tabs a[href="#warnings"],
 body:not(:has(section.panel:target, section.panel :target)) nav.tabs a[href="#boxes"] {
   color: var(--fg); background: var(--head); border-color: var(--line); font-weight: 600;
 }
+body:has(#car:target, #car :target) { max-width: none; }
+body:has(#car:target, #car :target) nav.tabs a[href="#car"] {
+  color: var(--fg); background: var(--head); border-color: var(--line); font-weight: 600;
+}
+.stage { position: relative; height: calc(100vh - 12rem); min-height: 24rem; margin-top: 1rem;
+         border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+#car-svg { width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; background: var(--bg); }
+#car-svg.grabbing { cursor: grabbing; }
+.zoom { position: absolute; right: 0.6rem; bottom: 0.6rem; display: flex; gap: 0.25rem; }
+.zoom button { font: inherit; padding: 0.2rem 0.6rem; border: 1px solid var(--line); border-radius: 4px;
+               background: var(--head); color: var(--fg); cursor: pointer; }
+.zoom button:hover { border-color: var(--muted); }
+.car-grid-line { stroke: var(--line); stroke-width: 1; opacity: 0.55; }
+.switches { position: absolute; right: 0.6rem; top: 0.6rem; display: flex; gap: 0.9rem; padding: 0.3rem 0.7rem;
+            border: 1px solid var(--line); border-radius: 4px; background: var(--head); }
+.switches label { cursor: pointer; user-select: none; }
+.tip { position: absolute; z-index: 2; pointer-events: none; white-space: pre; padding: 0.25rem 0.5rem;
+       border: 1px solid var(--line); border-radius: 4px; background: var(--head); font-size: 0.85rem; }
+.car-cable { fill: none; stroke: var(--muted); stroke-linejoin: round; stroke-linecap: butt; opacity: 0.8; }
+.car-hit { fill: none; stroke: transparent; stroke-linejoin: round; pointer-events: stroke; }
+#car-svg.focus .car-cable { opacity: 0.12; }
+#car-svg.focus .car-cable.hot { opacity: 1; stroke: var(--link); }
+#car-svg.hide-cables .car-cable { opacity: 0; }
+#car-svg.hide-cables .car-hit { pointer-events: none; }
+#car-svg.hide-cables.focus .car-cable { opacity: 0; }
+#car-svg.hide-cables.focus .car-cable.hot { opacity: 1; stroke: var(--link); }
+.car-node rect { stroke-width: 2; }
+.car-box rect { fill: var(--head); stroke: var(--fg); }
+.car-device rect { fill: var(--bg); stroke: var(--muted); stroke-width: 1.5; }
+.car-name { fill: var(--fg); font: 600 13px system-ui, sans-serif; }
+.car-device .car-name { font-size: 11px; font-weight: 500; }
+.car-info { fill: var(--muted); font: 11px system-ui, sans-serif; }
 @media print {
   body { max-width: none; padding: 0; font-size: 11px; }
   nav.tabs { display: none; }
@@ -124,6 +161,8 @@ def render_page(pinout):
     tabs = [("boxes", f"Boxes ({len(pinout.boxes)})", render_boxes(pinout, anchors))]
     if pinout.cables:
         tabs.append(("cables", f"Cables ({len(pinout.cables)})", render_cables(pinout, anchors)))
+    if pinout.diagram is not None and pinout.diagram.nodes:
+        tabs.append(("car", "Car", render_car(pinout.diagram)))
     tabs.append(("warnings", f"Warnings ({len(pinout.warnings)})", render_warnings(pinout, anchors)))
     if pinout.colors:
         tabs.append(("config", "Config", render_legend(pinout)))
@@ -144,6 +183,8 @@ def render_page(pinout):
     ]
     for name, _, content in tabs:
         parts.append(f'<section class="panel" id="{name}">\n{content}\n</section>')
+    if any(name == "car" for name, _, _ in tabs):
+        parts.append(f"<script>{SCRIPT}</script>")
     parts.append("</body>")
     parts.append("</html>")
     return "\n".join(parts) + "\n"
@@ -160,6 +201,26 @@ def render_header(pinout):
                    f"{count(pinout.wire_count(), 'wire', 'wires')}")
     return (f"<header><h1>{text(pinout.car)} pinout</h1>"
             f'<div class="muted">{counts}</div></header>')
+
+
+def render_car(diagram):
+    """The car tab: an empty drawing with the diagram's data beside it, which
+    the script draws. The data is JSON with `<` escaped, so no value can end
+    its tag."""
+    data = json.dumps(diagram.as_data()).replace("<", "\\u003c")
+    return ('<div class="stage">'
+            '<svg id="car-svg" xmlns="http://www.w3.org/2000/svg">'
+            f'<defs><pattern id="car-grid" width="{GRID}" height="{GRID}" patternUnits="userSpaceOnUse">'
+            f'<path d="M {GRID} 0 L 0 0 0 {GRID}" fill="none" class="car-grid-line"/></pattern></defs>'
+            '<g id="car-world"></g></svg>'
+            '<div class="switches">'
+            '<label><input type="checkbox" id="car-show"> Cables</label>'
+            '<label><input type="checkbox" id="car-bundled"> Bundled</label></div>'
+            '<div id="car-tip" class="tip" hidden></div>'
+            '<div class="zoom"><button id="car-zoom-out" title="Zoom out">−</button>'
+            '<button id="car-fit" title="Fit the whole car">Fit</button>'
+            '<button id="car-zoom-in" title="Zoom in">+</button></div></div>'
+            f'<script type="application/json" id="car-data">{data}</script>')
 
 
 def render_warnings(pinout, anchors):

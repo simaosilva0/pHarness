@@ -33,8 +33,8 @@ def test_the_page_has_every_box_and_pin(project):
 
 def test_the_page_needs_nothing_from_outside(project):
     page = page_of(project)
-    assert "<script" not in page
-    assert "http" not in page
+    assert "<script src" not in page
+    assert "http" not in page.replace("http://www.w3.org/2000/svg", "")
 
 
 def test_a_to_a_box_links_to_it_and_a_device_does_not(project):
@@ -72,11 +72,12 @@ def test_no_warnings_no_list(project):
     assert "No warnings." in page
 
 
-def test_the_page_has_four_tabs(project):
+def test_the_page_has_five_tabs(project):
     page = page_of(project)
     assert ('<nav class="tabs"><a href="#boxes">Boxes (7)</a><a href="#cables">Cables (28)</a>'
-            '<a href="#warnings">Warnings (0)</a><a href="#config">Config</a></nav>') in page
-    for name in ["boxes", "cables", "config", "warnings"]:
+            '<a href="#car">Car</a><a href="#warnings">Warnings (0)</a>'
+            '<a href="#config">Config</a></nav>') in page
+    for name in ["boxes", "cables", "car", "config", "warnings"]:
         assert f'<section class="panel" id="{name}">' in page
 
 

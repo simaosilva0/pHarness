@@ -1,7 +1,12 @@
-"""The car diagram: its nodes, links and default positions (diagram.py)."""
+"""The car diagram: its nodes, links and default positions (diagram.py), and
+the Car tab that carries them (page.py)."""
+
+import json
+import re
 
 from pharness.check import read_and_check
-from pharness.output.diagram import BOX_SIZE, DEVICE_SIZE
+from pharness.output.diagram import BOX_SIZE, DEVICE_SIZE, Diagram, Node
+from pharness.output.page import render_car, render_page
 from pharness.output.pinout import build_pinout
 
 
@@ -67,3 +72,26 @@ def test_cables_between_the_same_two_nodes_are_one_link(project):
     assert len(pairs) == len(set(pairs))
     bundled = [link for link in links if len(link.cables) > 1]
     assert bundled
+
+
+def test_the_page_carries_the_diagram(project):
+    model, pinout = pinout_of(project)
+    page = render_page(pinout)
+    found = re.search(r'<script type="application/json" id="car-data">(.*?)</script>', page)
+    data = json.loads(found.group(1))
+    assert data["grid"] == 20
+    assert len(data["nodes"]) == len(pinout.diagram.nodes)
+    assert '<svg id="car-svg"' in page
+
+
+def test_a_name_cannot_end_the_data_tag():
+    diagram = Diagram([Node("</script><b>", "device", "")], [])
+    data = render_car(diagram).split('id="car-data">')[1].split("</script>")[0]
+    assert "<" not in data
+    assert json.loads(data)["nodes"][0]["name"] == "</script><b>"
+
+
+def test_the_car_tab_has_its_switches_and_tooltip(project):
+    page = render_page(pinout_of(project)[1])
+    for id_ in ["car-show", "car-bundled", "car-tip"]:
+        assert f'id="{id_}"' in page
