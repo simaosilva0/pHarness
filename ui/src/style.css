@@ -1,0 +1,51 @@
+/* The page's variables (--bg, --fg, --muted, --line, --head, --link) colour the
+   diagram, so the page's light and dark switch changes it too. */
+.car .stage { position: relative; height: calc(100vh - 16rem); min-height: 24rem; margin-top: 0.6rem;
+              border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.car .react-flow { --xy-background-color: var(--bg); --xy-background-pattern-color: var(--line);
+                   --xy-edge-stroke-default: var(--muted); --xy-minimap-background-color: var(--head);
+                   --xy-controls-button-background-color: var(--head); --xy-controls-button-color: var(--fg);
+                   --xy-controls-button-border-color: var(--line); --xy-controls-button-background-color-hover: var(--line);
+                   --xy-minimap-mask-background-color: rgb(120 125 135 / 0.25); }
+.car .react-flow__node { cursor: grab; }
+
+.card { box-sizing: border-box; border-radius: 10px; padding: 6px 10px; text-align: center; display: flex;
+        flex-direction: column; justify-content: center; border: 1.5px solid var(--muted);
+        background: var(--bg); color: var(--fg); box-shadow: 0 1px 3px rgb(0 0 0 / 0.18); }
+.card.box { border: 2px solid var(--fg); background: var(--head); }
+.card .name { font-weight: 600; font-size: 14px; }
+.card.device .name { font-size: 12px; font-weight: 500; }
+.card .info { font-size: 11px; color: var(--muted); }
+.react-flow__node.selected .card, .card.found { outline: 3px solid var(--link); outline-offset: 1px; }
+
+.react-flow__handle { opacity: 0; width: 6px; height: 6px; min-width: 0; min-height: 0; background: var(--link); border: none; }
+.reconnecting .react-flow__handle { opacity: 0.9; width: 9px; height: 9px; }
+.reconnecting .react-flow__handle.connectingto { background: #2e9d4f; width: 12px; height: 12px; }
+
+.react-flow__edge-path { opacity: 0.8; transition: opacity 0.15s; }
+.react-flow__edge.dim .react-flow__edge-path { opacity: 0.12; }
+.react-flow__edge.hot .react-flow__edge-path { stroke: var(--link); opacity: 1; }
+.react-flow__edge { cursor: pointer; }
+.hide-cables .react-flow__edge { opacity: 0; pointer-events: none; }
+.hide-cables .react-flow__edge.hot { opacity: 1; }
+.grip { pointer-events: all; fill: var(--bg); stroke: var(--link); stroke-width: 2; cursor: move; opacity: 0; }
+.react-flow__edge:hover .grip, .grip:active { opacity: 1; }
+.react-flow__edgeupdater { fill: var(--link); stroke: var(--bg); stroke-width: 2; opacity: 0; r: 7; }
+.react-flow__edge:hover .react-flow__edgeupdater { opacity: 1; }
+
+.filter { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; margin-top: 1rem; }
+.filter button, .filter select { font: inherit; padding: 0.1rem 0.6rem; border: 1px solid var(--line);
+                                 border-radius: 4px; background: var(--bg); color: var(--fg); cursor: pointer; }
+.filter .chip { background: var(--head); font-weight: 600; }
+.filter .chip.off { background: var(--bg); color: var(--muted); font-weight: 400; text-decoration: line-through; }
+.filter label { margin: 0 0.4rem; user-select: none; cursor: pointer; }
+.filter .search { font: inherit; padding: 0.1rem 0.5rem; border: 1px solid var(--line); border-radius: 4px;
+                  background: var(--bg); color: var(--fg); width: 13rem; margin-left: auto; }
+.filter .search.nomatch { border-color: #d32f2f; }
+.switches { display: flex; gap: 0.9rem; align-items: center; padding: 0.3rem 0.7rem; border: 1px solid var(--line);
+            border-radius: 4px; background: var(--head); color: var(--fg); }
+.switches label { cursor: pointer; user-select: none; }
+.switches button { font: inherit; padding: 0 0.5rem; border: 1px solid var(--line); border-radius: 4px;
+                   background: var(--bg); color: var(--fg); cursor: pointer; }
+.car .tip { position: absolute; z-index: 5; pointer-events: none; white-space: pre; padding: 0.25rem 0.5rem;
+            border: 1px solid var(--line); border-radius: 4px; background: var(--head); color: var(--fg); font-size: 0.85rem; }

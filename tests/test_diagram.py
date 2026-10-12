@@ -81,7 +81,7 @@ def test_the_page_carries_the_diagram(project):
     data = json.loads(found.group(1))
     assert data["grid"] == 20
     assert len(data["nodes"]) == len(pinout.diagram.nodes)
-    assert '<svg id="car-svg"' in page
+    assert '<div id="car-root"></div>' in page
 
 
 def test_a_name_cannot_end_the_data_tag():
@@ -90,11 +90,6 @@ def test_a_name_cannot_end_the_data_tag():
     assert "<" not in data
     assert json.loads(data)["nodes"][0]["name"] == "</script><b>"
 
-
-def test_the_car_tab_has_its_switches_and_tooltip(project):
-    page = render_page(pinout_of(project)[1])
-    for id_ in ["car-show", "car-bundled", "car-reset", "car-tip"]:
-        assert f'id="{id_}"' in page
 
 
 def test_buses_links_and_chains_are_groups_of_nodes(project):
@@ -117,9 +112,9 @@ def test_a_device_knows_the_box_it_sits_beside(project):
     assert nodes["Nose"].owner is None
 
 
-def test_the_car_tab_has_a_filter_bar(project):
+def test_the_car_tab_has_a_place_for_the_diagram_and_its_data(project):
     page = render_page(pinout_of(project)[1])
-    assert 'id="car-filter"' in page
+    assert '<div id="car-root"></div>' in page
     assert '"groups": [' in page
 
 
@@ -142,10 +137,11 @@ def test_the_page_data_does_not_change_the_diagram(project):
     assert not any(hasattr(node, "href") for node in pinout.diagram.nodes)
 
 
-def test_the_car_tab_can_search_and_export(project):
+def test_the_car_tab_carries_its_script_and_styles(project):
     page = render_page(pinout_of(project)[1])
-    assert "function saveSvg" in page and "function savePng" in page
-    assert 'type: "search"' in page
+    assert page.index("<style>.react-flow") < page.index('id="car-root"')
+    assert page.index('id="car-data"') < page.index('getElementById("car-data")')   # the data comes before the script
+    assert "<script src" not in page
 
 
 def test_a_device_has_a_cell_on_its_side_for_each_cable(project):

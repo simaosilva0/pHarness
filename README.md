@@ -127,8 +127,9 @@ It exits with 1 when there is an error, so it can run in CI.
 
 Build the pinout page, an offline HTML file with every box, connector and pin,
 the wire label, cable and color of each wire, a wire list for every cable, and a
-diagram of the whole car (the Car tab: zoom and pan, move boxes, devices and
-cables on a grid, filter, search, save as SVG or PNG, light or dark):
+diagram of the whole car (the Car tab: move boxes and devices where you want
+them, move a cable's middle or either end, select several, zoom and pan, filter,
+search, save as SVG or PNG, light or dark):
 
 ```sh
 pharness build example             # writes example/build/pinout.html
@@ -218,6 +219,19 @@ Next, roughly in order:
 
 Out of scope: wire gauge, length, current and manufacturing detail. Those belong
 in the harness tool used after the concept phase.
+
+## The car diagram's code
+
+The Car tab is a small React app on [React Flow](https://reactflow.dev) in `ui/`.
+`pharness build` only needs Python: the app is built into `src/pharness/output/ui/`
+(`car.js`, `car.css`), which is committed and put in the page, so the page works
+offline. Only a change to the diagram itself needs Node:
+
+```sh
+cd ui
+npm install
+npm run build      # rewrites src/pharness/output/ui/
+```
 
 ## License
 

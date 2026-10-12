@@ -1,6 +1,6 @@
-"""The pinout as one HTML page: offline, the styles and the one script inline.
+"""The pinout as one HTML page: offline, the styles and the scripts inline.
 Five tabs: boxes, cables, car (the diagram), warnings and config (the wire
-colors). The script draws the car tab and nothing else. A tab is shown
+colors). The car script draws the car tab and nothing else. A tab is shown
 when it, or something in it, is the page's target, so every link opens the tab
 it points into; with no target the boxes are shown.
 
@@ -10,10 +10,15 @@ Every value from the project goes through text(), which escapes it.
 import json
 import re
 from html import escape
+from pathlib import Path
 
-from .diagram import GRID
-from .diagram_script import SCRIPT
 from .theme_script import THEME_BUTTON, THEME_RESTORE
+
+# The car diagram's script and styles, built from ui/ (`npm run build` there) and
+# put in the page as they are.
+UI = Path(__file__).parent / "ui"
+CAR_SCRIPT = (UI / "car.js").read_text(encoding="utf-8")
+CAR_STYLE = (UI / "car.css").read_text(encoding="utf-8")
 
 # Each column's share of the width, the same in every connector's table.
 COLUMNS = [
@@ -135,55 +140,7 @@ body:has(#car:target, #car :target) { max-width: none; }
 body:has(#car:target, #car :target) nav.tabs a[href="#car"] {
   color: var(--fg); background: var(--head); border-color: var(--line); font-weight: 600;
 }
-.stage { position: relative; height: calc(100vh - 16rem); min-height: 24rem; margin-top: 0.6rem;
-         border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
-#car-svg { width: 100%; height: 100%; display: block; touch-action: none; cursor: default; background: var(--bg); }
-#car-svg.pannable { cursor: grab; }
-#car-svg.grabbing { cursor: grabbing; }
-.filter { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; margin-top: 1rem; }
-.filter button, .filter select { font: inherit; padding: 0.1rem 0.6rem; border: 1px solid var(--line);
-                                 border-radius: 4px; background: var(--bg); color: var(--fg); cursor: pointer; }
-.filter .chip { background: var(--head); font-weight: 600; }
-.filter .chip.off { background: var(--bg); color: var(--muted); font-weight: 400; text-decoration: line-through; }
-.filter label { margin: 0 0.4rem; user-select: none; cursor: pointer; }
-.filter .search { font: inherit; padding: 0.1rem 0.5rem; border: 1px solid var(--line); border-radius: 4px;
-                 background: var(--bg); color: var(--fg); width: 13rem; margin-left: auto; }
-.filter .search.nomatch { border-color: #d32f2f; }
-.car-node.found rect { animation: found 1.4s ease-out; }
-@keyframes found { 0%, 60% { stroke: var(--link); stroke-width: 6; } 100% { } }
 .hint { margin: 0.4rem 0 0; font-size: 0.85rem; }
-.car-marquee { fill: var(--link); fill-opacity: 0.12; stroke: var(--link); stroke-dasharray: 4 3; pointer-events: none; }
-.car-node.selected rect { stroke: var(--link); stroke-width: 3; }
-.zoom { position: absolute; right: 0.6rem; bottom: 0.6rem; display: flex; gap: 0.25rem; }
-.zoom button { font: inherit; padding: 0.2rem 0.6rem; border: 1px solid var(--line); border-radius: 4px;
-               background: var(--head); color: var(--fg); cursor: pointer; }
-.switches button:hover, .zoom button:hover { border-color: var(--muted); }
-.car-grid-line { stroke: var(--line); stroke-width: 1; opacity: 0.55; }
-.switches { position: absolute; right: 0.6rem; top: 0.6rem; display: flex; gap: 0.9rem; padding: 0.3rem 0.7rem;
-            border: 1px solid var(--line); border-radius: 4px; background: var(--head); }
-.switches label { cursor: pointer; user-select: none; }
-.switches button { font: inherit; padding: 0 0.5rem; border: 1px solid var(--line); border-radius: 4px;
-                   background: var(--bg); color: var(--fg); cursor: pointer; }
-.car-node { cursor: move; }
-.car-node.moving rect { stroke: var(--link); }
-.tip { position: absolute; z-index: 2; pointer-events: none; white-space: pre; padding: 0.25rem 0.5rem;
-       border: 1px solid var(--line); border-radius: 4px; background: var(--head); font-size: 0.85rem; }
-.car-cable { fill: none; stroke: var(--muted); stroke-linejoin: round; stroke-linecap: butt; opacity: 0.8; }
-.car-hit { fill: none; stroke: transparent; stroke-linejoin: round; pointer-events: stroke; vector-effect: non-scaling-stroke; }
-.car-handle { fill: var(--link); stroke: var(--bg); stroke-width: 2; vector-effect: non-scaling-stroke; cursor: grab; }
-.car-handle.mid { fill: var(--bg); stroke: var(--link); }
-#car-svg.focus .car-cable { opacity: 0.12; }
-#car-svg.focus .car-cable.hot { opacity: 1; stroke: var(--link); }
-#car-svg.hide-cables .car-cable { opacity: 0; }
-#car-svg.hide-cables .car-hit { pointer-events: none; }
-#car-svg.hide-cables.focus .car-cable { opacity: 0; }
-#car-svg.hide-cables.focus .car-cable.hot { opacity: 1; stroke: var(--link); }
-.car-node rect { stroke-width: 2; }
-.car-box rect { fill: var(--head); stroke: var(--fg); }
-.car-device rect { fill: var(--bg); stroke: var(--muted); stroke-width: 1.5; }
-.car-name { fill: var(--fg); font: 600 13px system-ui, sans-serif; }
-.car-device .car-name { font-size: 11px; font-weight: 500; }
-.car-info { fill: var(--muted); font: 11px system-ui, sans-serif; }
 @media print {
   body { max-width: none; padding: 0; font-size: 11px; }
   nav.tabs, button.theme { display: none; }
@@ -207,6 +164,7 @@ def render_page(pinout):
     if pinout.colors:
         tabs.append(("config", "Config", render_legend(pinout)))
 
+    has_car = any(name == "car" for name, _, _ in tabs)
     links = "".join(f'<a href="#{name}">{title}</a>' for name, title, _ in tabs)
     parts = [
         "<!doctype html>",
@@ -216,6 +174,7 @@ def render_page(pinout):
         '<meta name="viewport" content="width=device-width, initial-scale=1">',
         f"<title>{text(pinout.car)} pinout</title>",
         f"<style>{STYLE}</style>",
+        f"<style>{CAR_STYLE}</style>" if has_car else "",
         f"<script>{THEME_RESTORE}</script>",
         "</head>",
         "<body>",
@@ -225,8 +184,8 @@ def render_page(pinout):
     for name, _, content in tabs:
         parts.append(f'<section class="panel" id="{name}">\n{content}\n</section>')
     parts.append(f"<script>{THEME_BUTTON}</script>")
-    if any(name == "car" for name, _, _ in tabs):
-        parts.append(f"<script>{SCRIPT}</script>")
+    if has_car:
+        parts.append(f"<script>{CAR_SCRIPT}</script>")
     parts.append("</body>")
     parts.append("</html>")
     return "\n".join(parts) + "\n"
@@ -248,7 +207,7 @@ def render_header(pinout):
 
 def render_car(diagram, anchors=None):
     """The car tab: an empty drawing with the diagram's data beside it, which
-    the script draws. With `anchors`, a box and a cable know their sections.
+    the car script draws. With `anchors`, a box and a cable know their sections.
     The data is JSON with `<` escaped, so no value can end its tag."""
     data = diagram.as_data()
     if anchors is not None:
@@ -259,24 +218,11 @@ def render_car(diagram, anchors=None):
             for cable in link["cables"]:
                 cable["href"] = anchors["cable"].get(cable["name"])
     data = json.dumps(data).replace("<", "\\u003c")
-    return ('<div id="car-filter" class="filter"></div>'
-            '<div class="stage">'
-            '<svg id="car-svg" xmlns="http://www.w3.org/2000/svg">'
-            f'<defs><pattern id="car-grid" width="{GRID}" height="{GRID}" patternUnits="userSpaceOnUse">'
-            f'<path d="M {GRID} 0 L 0 0 0 {GRID}" fill="none" class="car-grid-line"/></pattern></defs>'
-            '<g id="car-world"></g></svg>'
-            '<div class="switches">'
-            '<label><input type="checkbox" id="car-show"> Cables</label>'
-            '<label><input type="checkbox" id="car-bundled"> Bundled</label>'
-            '<button id="car-reset" title="Put every box and device back where the tool placed it">Reset layout</button></div>'
-            '<div id="car-tip" class="tip" hidden></div>'
-            '<div class="zoom"><button id="car-zoom-out" title="Zoom out">−</button>'
-            '<button id="car-fit" title="Fit the whole car">Fit</button>'
-            '<button id="car-zoom-in" title="Zoom in">+</button></div></div>'
-            '<p class="muted hint">Click a box or device to open its pinout or cable. Drag on empty space to select, '
-            'then drag a selected box to move them all (shift adds or removes one). Point at a cable for its handles: drag an end to '
-            'another side of its box or device, drag the middle one to make the cable bend through another point; cables never share a line; double-click a cable to put it back. Drag the view with the middle or right button, or hold '
-            'Space or Alt. The wheel zooms.</p>'
+    return ('<div id="car-root"></div>'
+            '<p class="muted hint">Click a box, device or cable to open its pinout. Drag a box to move it; drag on empty '
+            'space to select several, then drag one of them. Point at a cable to drag its middle run, or either end to '
+            'another side of its box; double-click the grip to put it back. Pan with the middle or right button, or hold '
+            'Space. The wheel zooms.</p>'
             f'<script type="application/json" id="car-data">{data}</script>')
 
 

@@ -34,7 +34,11 @@ def test_the_page_has_every_box_and_pin(project):
 def test_the_page_needs_nothing_from_outside(project):
     page = page_of(project)
     assert "<script src" not in page
-    assert "http" not in page.replace("http://www.w3.org/2000/svg", "")
+    # no link, image, stylesheet or import reaches out; the http strings that are
+    # left are text inside the car script (namespaces, messages)
+    assert not re.search(r"""(src|href|action)\s*=\s*["']?(https?:)?//""", page)
+    assert not re.search(r"@import|url\(\s*[\"']?(https?:)?//", page)
+    assert "PharnessCar" in page or 'id="car-root"' in page
 
 
 def test_a_to_a_box_links_to_it_and_a_device_does_not(project):
