@@ -48,7 +48,7 @@ function Car({ data }) {
   }));
 
   const [hidden, setHidden] = useState(saved.hidden);
-  const [options, setOptions] = useState({ show: true, bundled: true, devices: true, ...saved.options });
+  const [options, setOptions] = useState({ show: true, bundled: true, devices: true, text: 1, ...saved.options });
   const [setup, setSetup] = useState(saved.setup);   // what the user did to a cable: {s, t}
   const [hover, setHover] = useState(null);
   const [tip, setTip] = useState(null);
@@ -154,7 +154,7 @@ function Car({ data }) {
     const list = shownNodes.filter((n) => !n.hidden).map((n) => ({ ...n.data, x: n.position.x, y: n.position.y }));
     const edgeList = edges.filter((e) => !hidden[e.source] && !hidden[e.target] &&
       (options.devices || (nodes.find((n) => n.id === e.source).data.kind === "box" && nodes.find((n) => n.id === e.target).data.kind === "box")));
-    return svgOf(list, edgeList, options.show);
+    return svgOf(list, edgeList, options.show, options.text);
   };
 
   // --- going to a pinout or cable ---
@@ -176,7 +176,7 @@ function Car({ data }) {
   }, [flow]);
 
   return (
-    <div className="car" ref={rootRef}>
+    <div className="car" ref={rootRef} style={{ "--text": options.text }}>
       <Toolbar data={data} hidden={hidden} devices={options.devices} find={find} only={only} toggleBox={toggleBox}
                showDevices={(on) => setOptions((o) => ({ ...o, devices: on }))}
                onSvg={() => saveSvg(picture())} onPng={() => savePng(picture())} />
@@ -201,6 +201,10 @@ function Car({ data }) {
           <Panel position="top-right" className="switches">
             <label><input type="checkbox" checked={options.show} onChange={(e) => setOptions((o) => ({ ...o, show: e.target.checked }))} /> Cables</label>
             <label><input type="checkbox" checked={options.bundled} onChange={(e) => setOptions((o) => ({ ...o, bundled: e.target.checked }))} /> Bundled</label>
+            <label className="size" title="Size of the names on boxes and devices">Text
+              <input type="range" min="0.7" max="2" step="0.1" value={options.text}
+                     onChange={(e) => setOptions((o) => ({ ...o, text: Number(e.target.value) }))} />
+            </label>
             <button onClick={reset} title="Put every box, device and cable back where the tool placed it">Reset layout</button>
           </Panel>
         </ReactFlow>

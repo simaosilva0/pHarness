@@ -4,7 +4,7 @@ const xml = (text) => String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").
 
 // What is shown as a standalone SVG on white: the shown nodes and, when cables
 // are on, the cables between them. `nodes` have positions in `x`, `y`.
-export function svgOf(nodes, edges, withCables) {
+export function svgOf(nodes, edges, withCables, text = 1) {
   if (!nodes.length) return null;
   const pad = 40;
   const x0 = Math.min(...nodes.map((n) => n.x)) - pad, y0 = Math.min(...nodes.map((n) => n.y)) - pad;
@@ -20,8 +20,8 @@ export function svgOf(nodes, edges, withCables) {
   for (const n of nodes) {
     const box = n.kind === "box";
     out.push(`<rect x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="10" fill="${box ? "#f3f4f6" : "#ffffff"}" stroke="${box ? "#1d1f23" : "#6a6f78"}" stroke-width="${box ? 2 : 1.5}"/>`);
-    out.push(`<text x="${n.x + n.w / 2}" y="${n.y + n.h / 2 + (box ? -2 : 4)}" text-anchor="middle" fill="#1d1f23" font-size="${box ? 14 : 12}" font-weight="${box ? 600 : 500}">${xml(n.name)}</text>`);
-    if (n.info) out.push(`<text x="${n.x + n.w / 2}" y="${n.y + n.h / 2 + 16}" text-anchor="middle" fill="#6a6f78" font-size="11">${xml(n.info)}</text>`);
+    out.push(`<text x="${n.x + n.w / 2}" y="${n.y + n.h / 2 + (box ? 7 : 5) * text}" text-anchor="middle" fill="#1d1f23" font-size="${(box ? 20 : 14) * text}" font-weight="${box ? 600 : 500}">${xml(n.name)}</text>`);
+    if (n.info) out.push(`<text x="${n.x + n.w / 2}" y="${n.y + n.h - 10}" text-anchor="middle" fill="#6a6f78" font-size="12">${xml(n.info)}</text>`);
   }
   out.push("</svg>");
   return { text: out.join("\n"), width: w, height: h };
