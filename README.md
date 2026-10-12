@@ -127,8 +127,8 @@ It exits with 1 when there is an error, so it can run in CI.
 
 Build the pinout page, an offline HTML file with every box, connector and pin,
 the wire label, cable and color of each wire, a wire list for every cable, and a
-diagram of the whole car (the Car tab: zoom and pan, cables shown or hidden,
-hover a box, device or cable to see what it connects):
+diagram of the whole car (the Car tab: zoom and pan, move boxes, devices and
+cables on a grid, filter, search, save as SVG or PNG, light or dark):
 
 ```sh
 pharness build example             # writes example/build/pinout.html
