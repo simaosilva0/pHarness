@@ -220,9 +220,8 @@ def render_car(diagram, anchors=None):
     data = json.dumps(data).replace("<", "\\u003c")
     return ('<div id="car-root"></div>'
             '<p class="muted hint">Click a box, device or cable to open its pinout. Drag a box to move it; drag on empty '
-            'space to select several, then drag one of them. Point at a cable to drag its middle run, or either end to '
-            'another side of its box; double-click the grip to put it back. Pan with the middle or right button, or hold '
-            'Space. The wheel zooms.</p>'
+            'space to select several, then drag one of them. Point at a cable and drag either end to another side of its '
+            'box. Pan with the middle or right button, or hold Space. The wheel zooms.</p>'
             f'<script type="application/json" id="car-data">{data}</script>')
 
 

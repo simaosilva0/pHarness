@@ -49,7 +49,7 @@ function Car({ data }) {
 
   const [hidden, setHidden] = useState(saved.hidden);
   const [options, setOptions] = useState({ show: true, bundled: true, devices: true, ...saved.options });
-  const [setup, setSetup] = useState(saved.setup);   // what the user did to a cable: {s, t, c}
+  const [setup, setSetup] = useState(saved.setup);   // what the user did to a cable: {s, t}
   const [hover, setHover] = useState(null);
   const [tip, setTip] = useState(null);
   const [reconnecting, setReconnecting] = useState(false);
@@ -84,12 +84,6 @@ function Car({ data }) {
     })));
   }, [data, options.bundled]);
 
-  const setCenter = useCallback((k, value) => setSetup((all) => {
-    const next = { ...all, [k]: { ...all[k], c: value } };
-    if (value === undefined) delete next[k].c;
-    return next;
-  }), []);
-
   const edges = useMemo(() => {
     const at = Object.fromEntries(nodes.map((n) => [n.id, { x: n.position.x, y: n.position.y, w: n.data.w, h: n.data.h }]));
     return plan(items, at, setup).map(({ item, s, t }) => ({
@@ -97,16 +91,16 @@ function Car({ data }) {
       style: { strokeWidth: thickness(item.wires) },
       zIndex: hover === item.key ? 20 : 0,   // the cable pointed at is drawn over the nodes
       className: hover && (hover === item.key || hover === item.a || hover === item.b) ? "hot" : hover ? "dim" : "",
-      data: { key: item.key, center: setup[item.key]?.c, setCenter, item },
+      data: { item },
     }));
-  }, [items, nodes, setup, hover, setCenter]);
+  }, [items, nodes, setup, hover]);
 
   // A cable end dropped on a handle of the node it was on goes to that side and
   // slot, and stays there; the other end is left as it was.
   const onReconnect = useCallback((old, connection) => {
     if (connection.source !== old.source || connection.target !== old.target) return;
     setSetup((all) => {
-      const one = { ...all[old.id], c: undefined };
+      const one = { ...all[old.id] };
       if (connection.sourceHandle !== old.sourceHandle) one.s = connection.sourceHandle;
       if (connection.targetHandle !== old.targetHandle) one.t = connection.targetHandle;
       return { ...all, [old.id]: one };
