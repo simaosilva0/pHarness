@@ -126,7 +126,9 @@ boxes/nose.yaml:43: warn conductor-one-end: horn digital: horn digital is on one
 It exits with 1 when there is an error, so it can run in CI.
 
 Build the pinout page, an offline HTML file with every box, connector and pin,
-the wire label, cable and color of each wire, and a wire list for every cable:
+the wire label, cable and color of each wire, a wire list for every cable, and a
+diagram of the whole car (the Car tab: zoom and pan, cables shown or hidden,
+hover a box, device or cable to see what it connects):
 
 ```sh
 pharness build example             # writes example/build/pinout.html
