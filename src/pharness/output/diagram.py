@@ -66,11 +66,11 @@ class Diagram:
         """The diagram as plain data, for the script that draws it."""
         return {
             "grid": GRID,
-            "nodes": [vars(node) for node in self.nodes],
+            "nodes": [dict(vars(node)) for node in self.nodes],
             "links": [{"a": link.a, "b": link.b, "wires": link.wires,
-                       "cables": [vars(cable) for cable in link.cables]}
+                       "cables": [dict(vars(cable)) for cable in link.cables]}
                       for link in self.links],
-            "groups": [vars(group) for group in self.groups],
+            "groups": [dict(vars(group)) for group in self.groups],
         }
 
 

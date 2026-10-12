@@ -121,3 +121,28 @@ def test_the_car_tab_has_a_filter_bar(project):
     page = render_page(pinout_of(project)[1])
     assert 'id="car-filter"' in page
     assert '"groups": [' in page
+
+
+def test_boxes_and_cables_know_their_sections(project):
+    model, pinout = pinout_of(project)
+    page = render_page(pinout)
+    found = re.search(r'<script type="application/json" id="car-data">(.*?)</script>', page)
+    data = json.loads(found.group(1))
+    boxes = {node["name"]: node for node in data["nodes"] if node["kind"] == "box"}
+    assert boxes["Nose"]["href"] == "boxes-nose-yaml"
+    assert f'<section class="box" id="{boxes["Nose"]["href"]}"' in page
+    for link in data["links"]:
+        for cable in link["cables"]:
+            assert f'<section class="cable" id="{cable["href"]}"' in page
+
+
+def test_the_page_data_does_not_change_the_diagram(project):
+    pinout = pinout_of(project)[1]
+    render_page(pinout)
+    assert not any(hasattr(node, "href") for node in pinout.diagram.nodes)
+
+
+def test_the_car_tab_can_search_and_export(project):
+    page = render_page(pinout_of(project)[1])
+    assert "function saveSvg" in page and "function savePng" in page
+    assert 'type: "search"' in page

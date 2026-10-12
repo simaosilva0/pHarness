@@ -22,6 +22,7 @@ SCRIPT = r"""
   var options = { show: true, bundled: true, devices: true };
   var hidden = {};
   var selected = {};
+  var mids = {};   // where a cable's middle run was dragged to, by cable key
 
   function visible(node) {
     return !hidden[node.name] && (node.kind === "box" || options.devices);
@@ -40,8 +41,9 @@ SCRIPT = r"""
   // --- cables ---------------------------------------------------------------
 
   // Whether a node other than the link's own stands in the band between them.
+  // Hidden nodes count too: a cable runs the same whatever the filter shows.
   function blocked(a, b, horizontal) {
-    return shown().some(function (n) {
+    return data.nodes.some(function (n) {
       if (n === a || n === b) return false;
       if (horizontal) {
         return n.x >= Math.min(a.x + a.w, b.x + b.w) && n.x + n.w <= Math.max(a.x, b.x)
@@ -98,27 +100,45 @@ SCRIPT = r"""
   }
 
   var overLanes = 0;
+
+  // The ends and the middle run of a cable: the polyline is the two ports
+  // joined by a run along `axis` at cell `mid`. The tool picks `mid`; a cable
+  // the user dragged keeps theirs.
   function route(link) {
     var s = link.sides;
+    link.base = null;
     if (!s) return null;
     var a = nodes[link.a], b = nodes[link.b];
-    var p, q, mid;
+    var p, q, mid, axis;
     if (s[0] === "top" && s[1] === "top") {
       p = [link.at0, a.y];
       q = [link.at1, b.y];
       mid = Math.min(a.y, b.y) - 2 - (overLanes++ % 5);
-      return [p, [p[0], mid], [q[0], mid], q];
-    }
-    if (s[0] === "right" || s[0] === "left") {
+      axis = "y";
+    } else if (s[0] === "right" || s[0] === "left") {
       p = [s[0] === "right" ? a.x + a.w : a.x, link.at0];
       q = [s[1] === "left" ? b.x : b.x + b.w, link.at1];
       mid = Math.round((p[0] + q[0]) / 2);
-      return [p, [mid, p[1]], [mid, q[1]], q];
+      axis = "x";
+    } else {
+      p = [link.at0, s[0] === "bottom" ? a.y + a.h : a.y];
+      q = [link.at1, s[1] === "top" ? b.y : b.y + b.h];
+      mid = Math.round((p[1] + q[1]) / 2);
+      axis = "y";
     }
-    p = [link.at0, s[0] === "bottom" ? a.y + a.h : a.y];
-    q = [link.at1, s[1] === "top" ? b.y : b.y + b.h];
-    mid = Math.round((p[1] + q[1]) / 2);
-    return [p, [p[0], mid], [q[0], mid], q];
+    link.base = { p: p, q: q, axis: axis };
+    link.mid = mids[link.key] !== undefined ? mids[link.key] : mid;
+    return outline(link);
+  }
+
+  function outline(link) {
+    var base = link.base, mid = link.mid;
+    if (base.axis === "x") return [base.p, [mid, base.p[1]], [mid, base.q[1]], base.q];
+    return [base.p, [base.p[0], mid], [base.q[0], mid], base.q];
+  }
+
+  function path(points) {
+    return points.map(function (pt) { return (pt[0] * G) + "," + (pt[1] * G); }).join(" ");
   }
 
   // A cable's width follows its wires: not realistic, but a fat cable looks fat.
@@ -132,17 +152,17 @@ SCRIPT = r"""
   // for each cable.
   var drawn = [];
 
+  // Every cable, whatever the filter shows, so none of them moves with it.
   function items() {
-    var links = data.links.filter(function (link) {
-      return visible(nodes[link.a]) && visible(nodes[link.b]);
-    });
-    if (options.bundled) return links.map(function (link) {
-      return { a: link.a, b: link.b, wires: link.wires, cables: link.cables };
+    if (options.bundled) return data.links.map(function (link) {
+      return { key: link.a + "|" + link.b, a: link.a, b: link.b, wires: link.wires, cables: link.cables,
+               href: link.cables[0] && link.cables[0].href };
     });
     var list = [];
-    links.forEach(function (link) {
+    data.links.forEach(function (link) {
       link.cables.forEach(function (cable) {
-        list.push({ a: link.a, b: link.b, wires: cable.wires, cables: [cable] });
+        list.push({ key: link.a + "|" + link.b + "|" + cable.name, a: link.a, b: link.b, wires: cable.wires,
+                    cables: [cable], href: cable.href });
       });
     });
     return list;
@@ -185,7 +205,8 @@ SCRIPT = r"""
     return "translate(" + node.x * G + "," + node.y * G + ")";
   }
 
-  // The cables, again: when a node moves or a switch changes.
+  // The cables, again: when a node moves or a switch changes. All are routed;
+  // only those between shown nodes are drawn.
   function drawCables() {
     while (cablesLayer.firstChild) cablesLayer.removeChild(cablesLayer.firstChild);
     var list = items();
@@ -194,21 +215,79 @@ SCRIPT = r"""
     drawn = [];
     list.forEach(function (item) {
       var points = route(item);
-      if (!points) return;
-      var path = points.map(function (pt) { return (pt[0] * G) + "," + (pt[1] * G); }).join(" ");
-      var line = make("polyline", { points: path, "stroke-width": thickness(item.wires) }, cablesLayer);
+      if (!points || !visible(nodes[item.a]) || !visible(nodes[item.b])) return;
+      var line = make("polyline", { points: path(points), "stroke-width": thickness(item.wires) }, cablesLayer);
       line.setAttribute("class", "car-cable");
       // a wider line, drawn on top and invisible, so a thin cable is easy to point at
-      var hit = make("polyline", { points: path, "stroke-width": Math.max(thickness(item.wires), 12) }, cablesLayer);
+      var hit = make("polyline", { points: path(points), "stroke-width": Math.max(thickness(item.wires), 12) }, cablesLayer);
       hit.setAttribute("class", "car-hit");
-      hit.addEventListener("pointerenter", function (event) { focus(item); tip(item, event); });
-      hit.addEventListener("pointermove", function (event) { tip(item, event); });
-      hit.addEventListener("pointerleave", function () { focus(null); tip(null); });
+      hit.style.cursor = item.base.axis === "x" ? "ew-resize" : "ns-resize";
+      cableEvents(item, line, hit);
       drawn.push({ item: item, line: line });
     });
     svg.classList.toggle("hide-cables", !options.show);
     if (current && !current.kind) current = null;   // a cable of the old drawing is gone
     focus(current);
+  }
+
+  // Pointing at a cable names it; dragging it moves its middle run, along the
+  // grid, with its ends where they are; a click goes to its cable page; a
+  // double click puts it back.
+  function cableEvents(item, line, hit) {
+    var drag = null, waiting = null;
+    hit.addEventListener("pointerenter", function (event) { focus(item); tip(item, event); });
+    hit.addEventListener("pointermove", function (event) {
+      if (!drag || drag.id !== event.pointerId) { tip(item, event); return; }
+      if (!drag.moved && Math.hypot(event.clientX - drag.sx, event.clientY - drag.sy) < 4) return;
+      drag.moved = true;
+      tip(null);
+      var at = local(event);
+      var mid = Math.round(((item.base.axis === "x" ? at[0] - view.x : at[1] - view.y) / view.k) / G);
+      if (mid === item.mid) return;
+      item.mid = mids[item.key] = mid;
+      var points = path(outline(item));
+      line.setAttribute("points", points);
+      hit.setAttribute("points", points);
+    });
+    hit.addEventListener("pointerleave", function () { focus(null); tip(null); });
+    hit.addEventListener("pointerdown", function (event) {
+      if (event.button !== 0 || panKey(event)) return;
+      event.stopPropagation();
+      hit.setPointerCapture(event.pointerId);
+      drag = { id: event.pointerId, sx: event.clientX, sy: event.clientY, moved: false };
+    });
+    function drop(event) {
+      if (!drag || drag.id !== event.pointerId) return;
+      var moved = drag.moved;
+      drag = null;
+      if (moved) { save(); return; }
+      if (event.type === "pointerup" && item.href) {
+        clearTimeout(waiting);
+        waiting = setTimeout(function () { jump(item.href); }, 250);   // unless it is a double click
+      }
+    }
+    hit.addEventListener("pointerup", drop);
+    hit.addEventListener("pointercancel", drop);
+    hit.addEventListener("dblclick", function () {
+      clearTimeout(waiting);
+      delete mids[item.key];
+      drawCables();
+      save();
+    });
+  }
+
+  function jump(href) {
+    location.hash = "#" + href;
+  }
+
+  // A box goes to its pinout; a device to the first cable that reaches it.
+  function pageOf(node) {
+    if (node.href) return node.href;
+    for (var i = 0; i < data.links.length; i++) {
+      var link = data.links[i];
+      if ((link.a === node.name || link.b === node.name) && link.cables[0] && link.cables[0].href) return link.cables[0].href;
+    }
+    return null;
   }
 
   // --- selecting and moving nodes -------------------------------------------
@@ -220,7 +299,7 @@ SCRIPT = r"""
   }
 
   function overlaps(moving, dx, dy) {
-    return shown().some(function (other) {
+    return data.nodes.some(function (other) {
       if (selected[other.name]) return false;
       return moving.some(function (s) {
         var x = s.x + dx, y = s.y + dy;
@@ -250,7 +329,7 @@ SCRIPT = r"""
       }
       group.setPointerCapture(event.pointerId);
       drag = { id: event.pointerId, sx: event.clientX, sy: event.clientY, dx: 0, dy: 0, moved: false,
-               collapse: was && !event.shiftKey,
+               shift: event.shiftKey,
                starts: Object.keys(selected).map(function (name) {
                  return { node: nodes[name], x: nodes[name].x, y: nodes[name].y };
                }) };
@@ -276,10 +355,12 @@ SCRIPT = r"""
       group.classList.remove("moving");
       if (drag.moved) {
         save();
-      } else if (drag.collapse) {
+      } else if (!drag.shift) {
         selected = {};
         selected[node.name] = true;
         paintSelection();
+        var page = event.type === "pointerup" ? pageOf(node) : null;
+        if (page) jump(page);
       }
       drag = null;
     }
@@ -346,6 +427,9 @@ SCRIPT = r"""
         options.bundled = saved.options.bundled !== false;
         options.devices = saved.options.devices !== false;
       }
+      Object.keys(saved.mids || {}).forEach(function (key) {
+        if (whole(saved.mids[key])) mids[key] = saved.mids[key];
+      });
       (saved.hidden || []).forEach(function (name) { if (nodes[name]) hidden[name] = true; });
       var v = saved.view;
       if (v && isFinite(v.x) && isFinite(v.y) && isFinite(v.k) && v.k >= MIN_K && v.k <= MAX_K) {
@@ -361,7 +445,7 @@ SCRIPT = r"""
       data.nodes.forEach(function (node) {
         if (node.x !== node.dx || node.y !== node.dy) moved[node.name] = [node.x, node.y];
       });
-      localStorage.setItem(storeKey, JSON.stringify({ nodes: moved, view: view, options: options, hidden: Object.keys(hidden) }));
+      localStorage.setItem(storeKey, JSON.stringify({ nodes: moved, view: view, options: options, hidden: Object.keys(hidden), mids: mids }));
     } catch (e) { /* blocked or full: nothing is kept */ }
   }
 
@@ -441,6 +525,7 @@ SCRIPT = r"""
     var label = element("label", bar, " Devices");
     var devices = element("input", label, "", { type: "checkbox" });
     label.insertBefore(devices, label.firstChild);
+    devicesBox = devices;
     devices.checked = options.devices;
     devices.addEventListener("change", function () {
       options.devices = devices.checked;
@@ -469,6 +554,135 @@ SCRIPT = r"""
       if (pick) only(pick.members);
       group.value = "";
     });
+
+    var names = element("datalist", bar, "", { id: "car-names" });
+    data.nodes.forEach(function (n) { element("option", names, "", { value: n.name }); });
+    var search = element("input", bar, "", { type: "search", placeholder: "Find a box or device…", list: "car-names",
+                                             "class": "search", "aria-label": "Find a box or device" });
+    function go() {
+      var node = find(search.value);
+      search.classList.toggle("nomatch", !node && search.value.trim() !== "");
+      if (node) reveal(node);
+    }
+    search.addEventListener("change", go);
+    search.addEventListener("keydown", function (event) { if (event.key === "Enter") go(); });
+    search.addEventListener("input", function () { search.classList.remove("nomatch"); });
+
+    element("button", bar, "SVG", { "class": "export", title: "Save what is shown as an SVG image" }).addEventListener("click", saveSvg);
+    element("button", bar, "PNG", { title: "Save what is shown as a PNG image" }).addEventListener("click", savePng);
+  }
+
+  // --- search and export ----------------------------------------------------
+
+  var devicesBox = null;
+
+  // The node whose name is, starts with or contains the text, in that order.
+  function find(text) {
+    var t = text.trim().toLowerCase();
+    if (!t) return null;
+    var tests = [function (n) { return n === t; }, function (n) { return n.indexOf(t) === 0; },
+                 function (n) { return n.indexOf(t) >= 0; }];
+    for (var i = 0; i < tests.length; i++) {
+      var hit = data.nodes.filter(function (n) { return tests[i](n.name.toLowerCase()); })[0];
+      if (hit) return hit;
+    }
+    return null;
+  }
+
+  // Bring a node into view: shown if the filter hid it, selected, centered.
+  function reveal(node) {
+    delete hidden[node.name];
+    if (node.kind === "device" && !options.devices) {
+      options.devices = true;
+      if (devicesBox) devicesBox.checked = true;
+    }
+    selected = {};
+    selected[node.name] = true;
+    refresh();
+    var box = svg.getBoundingClientRect();
+    view.k = Math.max(view.k, 0.6);
+    view.x = box.width / 2 - (node.x + node.w / 2) * G * view.k;
+    view.y = box.height / 2 - (node.y + node.h / 2) * G * view.k;
+    apply();
+    save();
+    var group = groups[node.name];
+    group.classList.remove("found");
+    void group.getBoundingClientRect();
+    group.classList.add("found");
+  }
+
+  function download(name, blob) {
+    var link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = name;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(function () { URL.revokeObjectURL(link.href); }, 1000);
+  }
+
+  function xml(text) {
+    return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  // What is on screen as a standalone SVG on white: the shown nodes and, when
+  // the cables are on, the cables between them; the view does not matter.
+  function exportSvg() {
+    var list = shown();
+    if (!list.length) return null;
+    var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    function grow(x, y) {
+      minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+    }
+    list.forEach(function (n) { grow(n.x, n.y); grow(n.x + n.w, n.y + n.h); });
+    var lines = options.show ? drawn : [];
+    lines.forEach(function (entry) { outline(entry.item).forEach(function (pt) { grow(pt[0], pt[1]); }); });
+    var x = (minX - 2) * G, y = (minY - 2) * G, w = (maxX - minX + 4) * G, h = (maxY - minY + 4) * G;
+    var out = ['<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" viewBox="' + x + " " + y + " " + w + " " + h +
+               '" font-family="system-ui, sans-serif">',
+               '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="#ffffff"/>'];
+    lines.forEach(function (entry) {
+      out.push('<polyline points="' + path(outline(entry.item)) + '" fill="none" stroke="#6a6f78" stroke-width="' +
+               thickness(entry.item.wires) + '" stroke-linejoin="round"/>');
+    });
+    list.forEach(function (n) {
+      var box = n.kind === "box";
+      out.push('<rect x="' + n.x * G + '" y="' + n.y * G + '" width="' + n.w * G + '" height="' + n.h * G + '" rx="6" fill="' +
+               (box ? "#f3f4f6" : "#ffffff") + '" stroke="' + (box ? "#1d1f23" : "#6a6f78") + '" stroke-width="' + (box ? 2 : 1.5) + '"/>');
+      out.push('<text x="' + (n.x + n.w / 2) * G + '" y="' + ((n.y + n.h / 2) * G + (box ? -4 : 4)) +
+               '" text-anchor="middle" fill="#1d1f23" font-size="' + (box ? 13 : 11) + '" font-weight="' + (box ? 600 : 500) + '">' + xml(n.name) + "</text>");
+      if (n.info) {
+        out.push('<text x="' + (n.x + n.w / 2) * G + '" y="' + ((n.y + n.h / 2) * G + 16) +
+                 '" text-anchor="middle" fill="#6a6f78" font-size="11">' + xml(n.info) + "</text>");
+      }
+    });
+    out.push("</svg>");
+    return { text: out.join("\n"), width: w, height: h };
+  }
+
+  function exportName(ext) {
+    var car = document.title.replace(/ pinout$/, "").replace(/[^A-Za-z0-9._-]+/g, "-") || "car";
+    return car + "-car." + ext;
+  }
+
+  function saveSvg() {
+    var image = exportSvg();
+    if (image) download(exportName("svg"), new Blob([image.text], { type: "image/svg+xml" }));
+  }
+
+  function savePng() {
+    var image = exportSvg();
+    if (!image) return;
+    var scale = Math.min(2, 8000 / Math.max(image.width, image.height));
+    var picture = new Image();
+    picture.onload = function () {
+      var canvas = document.createElement("canvas");
+      canvas.width = Math.round(image.width * scale);
+      canvas.height = Math.round(image.height * scale);
+      canvas.getContext("2d").drawImage(picture, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(function (blob) { if (blob) download(exportName("png"), blob); }, "image/png");
+    };
+    picture.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(image.text);
   }
 
   // Everything that follows from the filter: what is shown, the chips, the cables.
@@ -491,6 +705,7 @@ SCRIPT = r"""
       node.y = node.dy;
       groups[node.name].setAttribute("transform", place(node));
     });
+    mids = {};
     drawCables();
     fit();
     save();
