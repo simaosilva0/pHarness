@@ -53,6 +53,8 @@ function Car({ data }) {
   }));
 
   const [hidden, setHidden] = useState(saved.hidden);
+  const [pinned, setPinned] = useState(saved.pinned);
+  const [menu, setMenu] = useState(null);   // {x, y, ids} while the right-click menu is open
   const [placing, setPlacing] = useState(false);
   const [options, setOptions] = useState({ show: true, bundled: true, devices: true, text: 1, ...saved.options });
   const sizes = useMemo(() => Object.fromEntries(data.nodes.map((n) => [n.name, sizeOf(n, grid, options.text)])),
@@ -65,19 +67,21 @@ function Car({ data }) {
 
   const isHidden = (n) => hidden[n.id] || (n.data.kind === "device" && !options.devices);
   const shownNodes = useMemo(() => nodes.map((n) => ({
-    ...n, hidden: !!isHidden(n), data: { ...n.data, ...sizes[n.id], found: found === n.id },
-  })), [nodes, hidden, options.devices, found, sizes]);
+    ...n, hidden: !!isHidden(n), draggable: !pinned[n.id],
+    data: { ...n.data, ...sizes[n.id], found: found === n.id, pinned: !!pinned[n.id] },
+  })), [nodes, hidden, pinned, options.devices, found, sizes]);
 
-  // ELK places every node; a car with nothing remembered starts that way.
+  // ELK places every node but the pinned ones; a car with nothing remembered starts that way.
   const place = useCallback(async () => {
     setPlacing(true);
     try {
-      const at = await layout(data, sizes);
+      const fixed = Object.fromEntries(nodes.filter((n) => pinned[n.id]).map((n) => [n.id, [n.position.x, n.position.y]]));
+      const at = await layout(data, sizes, fixed);
       setNodes((all) => all.map((n) => (at[n.id] ? { ...n, position: { x: at[n.id][0], y: at[n.id][1] } } : n)));
       fitted.current = false;   // the tab may be hidden still: fit when it shows
       setTimeout(() => { if (rootRef.current.clientWidth > 0) { fitted.current = true; flow.fitView({ padding: 0.1, duration: 300 }); } }, 50);
     } finally { setPlacing(false); }
-  }, [data, sizes, flow, setNodes]);
+  }, [data, sizes, flow, setNodes, nodes, pinned]);
   useEffect(() => {
     if (Object.keys(saved.moved).length === 0) place();
   }, []);   // eslint-disable-line react-hooks/exhaustive-deps
@@ -90,10 +94,10 @@ function Car({ data }) {
       nodes.forEach((n, i) => {
         if (n.position.x !== home[i].position.x || n.position.y !== home[i].position.y) moved[n.id] = [n.position.x, n.position.y];
       });
-      save(key, { moved, setup, hidden: Object.keys(hidden), options, viewport: view.current });
+      save(key, { moved, setup, hidden: Object.keys(hidden), pinned: Object.keys(pinned), options, viewport: view.current });
     }, 300);
     return () => clearTimeout(wait);
-  }, [nodes, setup, hidden, options, key, home]);
+  }, [nodes, setup, hidden, pinned, options, key, home]);
 
   // --- the cables ---
 
@@ -166,8 +170,23 @@ function Car({ data }) {
     return hit;
   };
 
-  const reset = () => {
-    setSetup({});
+  // Pins: all the given nodes are pinned, unless they all are already, then they are freed.
+  const togglePins = (ids) => {
+    setPinned((all) => {
+      const next = { ...all };
+      const off = ids.every((id) => all[id]);
+      ids.forEach((id) => { if (off) delete next[id]; else next[id] = true; });
+      return next;
+    });
+  };
+  const openMenu = (event, node) => {
+    event.preventDefault();
+    const box = rootRef.current.getBoundingClientRect();
+    const chosen = nodes.filter((n) => n.selected).map((n) => n.id);
+    setMenu({ x: event.clientX - box.left, y: event.clientY - box.top, ids: chosen.includes(node.id) ? chosen : [node.id] });
+  };
+  const autoLayout = (event) => {
+    if (event.shiftKey) setSetup({});
     place();
   };
 
@@ -210,7 +229,9 @@ function Car({ data }) {
           onEdgeMouseEnter={(_, e) => setHover(e.id)} onEdgeMouseLeave={() => { setHover(null); setTip(null); }}
           onEdgeMouseMove={(event, e) => setTip({ x: event.clientX, y: event.clientY, item: e.data.item })}
           onNodeMouseEnter={(_, n) => setHover(n.id)} onNodeMouseLeave={() => setHover(null)}
-          onEdgeClick={(_, e) => jump(e.data.item.href)} onNodeClick={(_, n) => jump(pageOf(n))}
+          onEdgeClick={(_, e) => jump(e.data.item.href)}
+          onNodeClick={(event, n) => (event.altKey ? togglePins([n.id]) : jump(pageOf(n)))}
+          onNodeContextMenu={openMenu} onPaneClick={() => setMenu(null)} onMoveStart={() => setMenu(null)}
           onMoveEnd={(_, v) => { view.current = v; }}
           defaultViewport={saved.viewport || { x: 0, y: 0, zoom: 1 }}
           snapToGrid snapGrid={[10, 10]} selectionOnDrag panOnDrag={[1, 2]} panActivationKeyCode="Space"
@@ -226,9 +247,17 @@ function Car({ data }) {
               <input type="range" min="0.7" max="2" step="0.1" value={options.text}
                      onChange={(e) => setOptions((o) => ({ ...o, text: Number(e.target.value) }))} />
             </label>
-            <button onClick={reset} title="Place every box and device again, and put every cable back">Reset layout</button>
+            <button onClick={autoLayout} disabled={placing}
+                    title="Place the boxes and devices again, leaving the pinned ones where they are. Shift: and put every cable back">Auto layout</button>
+            <button onClick={() => setPinned({})} disabled={Object.keys(pinned).length === 0}
+                    title="Let auto layout move every box and device again">Clear pins</button>
           </Panel>
         </ReactFlow>
+        {menu && (
+          <div className="menu" style={{ left: menu.x, top: menu.y }} onClick={() => setMenu(null)}>
+            <button onClick={() => togglePins(menu.ids)}>{menu.ids.every((id) => pinned[id]) ? "Unpin" : "Pin"}{menu.ids.length > 1 ? ` ${menu.ids.length}` : ""}</button>
+          </div>
+        )}
         {tip && options.show && (
           <div className="tip" style={{ left: tip.x - rootRef.current.getBoundingClientRect().left + 14, top: tip.y - rootRef.current.getBoundingClientRect().top + 14 }}>
             {tip.item.cables.slice(0, 8).map((c) => `${c.name} · ${c.wires} ${c.wires === 1 ? "wire" : "wires"}`).join("\n")}

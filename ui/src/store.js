@@ -16,7 +16,7 @@ const number = (v) => typeof v === "number" && Number.isFinite(v);
 
 // The saved state, or an empty one: anything unusable is left out.
 export function load(key, data) {
-  const out = { moved: {}, setup: {}, hidden: {}, options: {}, viewport: null };
+  const out = { moved: {}, setup: {}, hidden: {}, pinned: {}, options: {}, viewport: null };
   try {
     const saved = JSON.parse(localStorage.getItem(key));
     if (!saved) return out;
@@ -28,6 +28,7 @@ export function load(key, data) {
       if (one && typeof one === "object") out.setup[k] = one;
     }
     for (const name of saved.hidden || []) if (known.has(name)) out.hidden[name] = true;
+    for (const name of saved.pinned || []) if (known.has(name)) out.pinned[name] = true;
     out.options = saved.options || {};
     const v = saved.viewport;
     if (v && number(v.x) && number(v.y) && number(v.zoom) && v.zoom > 0) out.viewport = v;
