@@ -164,3 +164,9 @@ def test_the_page_has_a_light_and_dark_switch(project):
     assert '<button class="theme" id="theme"' in page
     assert ':root[data-theme="dark"]' in page and '[data-theme="light"]' in page
     assert "pharness-theme" in page
+
+
+def test_the_page_has_solarized_and_nord_themes(project):
+    page = page_of(project)
+    assert ':root[data-theme="solarized"]' in page and ':root[data-theme="nord"]' in page
+    assert '"solarized", "dark", "nord"' in page

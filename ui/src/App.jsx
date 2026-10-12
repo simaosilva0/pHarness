@@ -16,8 +16,11 @@ const edgeTypes = { cable: CableEdge };
 
 // The page's light or dark, which the page's own switch changes.
 function usePageTheme() {
-  const read = () => document.documentElement.getAttribute("data-theme") ||
-    (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  const read = () => {
+    const named = document.documentElement.getAttribute("data-theme");
+    if (named) return named === "dark" || named === "nord" ? "dark" : "light";   // solarized is light, nord dark
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  };
   const [theme, setTheme] = useState(read);
   useEffect(() => {
     const watch = new MutationObserver(() => setTheme(read()));

@@ -85,9 +85,31 @@ STYLE = """
   --warn-fg: #f2c66b;
   --unused: #6a6f78;
 }
+:root[data-theme="solarized"] {
+  --bg: #fdf6e3;
+  --fg: #586e75;
+  --muted: #7f9195;
+  --line: #e3dcc3;
+  --head: #eee8d5;
+  --link: #268bd2;
+  --warn-bg: #f5e9c0;
+  --warn-fg: #8a6d00;
+  --unused: #93a1a1;
+}
+:root[data-theme="nord"] {
+  --bg: #2e3440;
+  --fg: #d8dee9;
+  --muted: #9aa5b8;
+  --line: #434c5e;
+  --head: #3b4252;
+  --link: #88c0d0;
+  --warn-bg: #4b4330;
+  --warn-fg: #ebcb8b;
+  --unused: #6b7790;
+}
 :root { color-scheme: light dark; }
-:root[data-theme="light"] { color-scheme: light; }
-:root[data-theme="dark"] { color-scheme: dark; }
+:root[data-theme="light"], :root[data-theme="solarized"] { color-scheme: light; }
+:root[data-theme="dark"], :root[data-theme="nord"] { color-scheme: dark; }
 header { position: relative; }
 button.theme { position: absolute; right: 0; top: 0; font: inherit; padding: 0.2rem 0.7rem; border: 1px solid var(--line);
                border-radius: 4px; background: var(--head); color: var(--fg); cursor: pointer; }
@@ -201,7 +223,7 @@ def render_header(pinout):
         counts += (f" · {count(len(pinout.cables), 'cable', 'cables')} · "
                    f"{count(pinout.wire_count(), 'wire', 'wires')}")
     return (f"<header><h1>{text(pinout.car)} pinout</h1>"
-            '<button class="theme" id="theme" title="Switch between light and dark"></button>'
+            '<button class="theme" id="theme" title="Change the theme"></button>'
             f'<div class="muted">{counts}</div></header>')
 
 
