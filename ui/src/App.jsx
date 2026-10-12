@@ -7,6 +7,7 @@ import CableEdge from "./CableEdge.jsx";
 import Toolbar from "./Toolbar.jsx";
 import { plan } from "./routing.js";
 import { sizeOf } from "./sizes.js";
+import { layout } from "./layout.js";
 import { load, save, storeKeyFor } from "./store.js";
 import { savePng, saveSvg, svgOf } from "./exporting.js";
 
@@ -49,6 +50,7 @@ function Car({ data }) {
   }));
 
   const [hidden, setHidden] = useState(saved.hidden);
+  const [placing, setPlacing] = useState(false);
   const [options, setOptions] = useState({ show: true, bundled: true, devices: true, text: 1, ...saved.options });
   const sizes = useMemo(() => Object.fromEntries(data.nodes.map((n) => [n.name, sizeOf(n, grid, options.text)])),
     [data, grid, options.text]);
@@ -62,6 +64,20 @@ function Car({ data }) {
   const shownNodes = useMemo(() => nodes.map((n) => ({
     ...n, hidden: !!isHidden(n), data: { ...n.data, ...sizes[n.id], found: found === n.id },
   })), [nodes, hidden, options.devices, found, sizes]);
+
+  // ELK places every node; a car with nothing remembered starts that way.
+  const place = useCallback(async () => {
+    setPlacing(true);
+    try {
+      const at = await layout(data, sizes);
+      setNodes((all) => all.map((n) => (at[n.id] ? { ...n, position: { x: at[n.id][0], y: at[n.id][1] } } : n)));
+      fitted.current = false;   // the tab may be hidden still: fit when it shows
+      setTimeout(() => { if (rootRef.current.clientWidth > 0) { fitted.current = true; flow.fitView({ padding: 0.1, duration: 300 }); } }, 50);
+    } finally { setPlacing(false); }
+  }, [data, sizes, flow, setNodes]);
+  useEffect(() => {
+    if (Object.keys(saved.moved).length === 0) place();
+  }, []);   // eslint-disable-line react-hooks/exhaustive-deps
 
   // What is remembered, a moment after the last change.
   const view = useRef(saved.viewport);
@@ -148,9 +164,8 @@ function Car({ data }) {
   };
 
   const reset = () => {
-    setNodes(home);
     setSetup({});
-    fitSoon();
+    place();
   };
 
   const picture = () => {
@@ -208,7 +223,7 @@ function Car({ data }) {
               <input type="range" min="0.7" max="2" step="0.1" value={options.text}
                      onChange={(e) => setOptions((o) => ({ ...o, text: Number(e.target.value) }))} />
             </label>
-            <button onClick={reset} title="Put every box, device and cable back where the tool placed it">Reset layout</button>
+            <button onClick={reset} title="Place every box and device again, and put every cable back">Reset layout</button>
           </Panel>
         </ReactFlow>
         {tip && options.show && (
