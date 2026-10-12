@@ -95,3 +95,24 @@ def test_the_car_tab_has_its_switches_and_tooltip(project):
     page = render_page(pinout_of(project)[1])
     for id_ in ["car-show", "car-bundled", "car-reset", "car-tip"]:
         assert f'id="{id_}"' in page
+
+
+def test_buses_links_and_chains_are_groups_of_nodes(project):
+    model, pinout = pinout_of(project)
+    names = {node.name for node in pinout.diagram.nodes}
+    groups = {group.name: group for group in pinout.diagram.groups}
+    assert set(groups) == set(model.car.buses) | set(model.car.links) | set(model.car.chains)
+    assert groups["can_drive"].kind == "bus"
+    assert groups["can_drive"].members == ["RearHub", "Battery", "Inverter"]
+    assert groups["hvil"].kind == "chain"
+    assert groups["hvil"].members == ["Battery", "Inverter", "ChargePort"]   # the box of each node
+    for group in groups.values():
+        assert set(group.members) <= names
+        assert len(group.members) == len(set(group.members))
+
+
+def test_a_device_knows_the_box_it_sits_beside(project):
+    nodes = {node.name: node for node in diagram_of(project).nodes}
+    assert nodes["APPS1"].owner == "Nose"
+    assert nodes["Nose"].owner is None
+

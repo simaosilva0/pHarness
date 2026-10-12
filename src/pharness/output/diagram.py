@@ -21,6 +21,7 @@ class Node:
     name: str
     kind: str           # "box" or "device"
     info: str           # a line under a box's name
+    owner: str | None = None   # a device: the box whose column it sits in
     x: int = 0
     y: int = 0
     w: int = 0
@@ -47,9 +48,19 @@ class Link:
 
 
 @dataclass
+class Group:
+    """A bus, a link or a chain and the nodes it touches."""
+
+    name: str
+    kind: str           # "bus", "link" or "chain"
+    members: list       # node names, in reading order
+
+
+@dataclass
 class Diagram:
     nodes: list         # [Node]
     links: list         # [Link]
+    groups: list = field(default_factory=list)   # [Group]
 
     def as_data(self):
         """The diagram as plain data, for the script that draws it."""
@@ -59,6 +70,7 @@ class Diagram:
             "links": [{"a": link.a, "b": link.b, "wires": link.wires,
                        "cables": [vars(cable) for cable in link.cables]}
                       for link in self.links],
+            "groups": [vars(group) for group in self.groups],
         }
 
 
@@ -88,9 +100,34 @@ def build_diagram(model, cables):
             link = links.setdefault(key, Link(*key))
             link.cables.append(CableOnLink(cable.name, wires.get(cable.name, 0)))
 
-    diagram = Diagram(nodes, list(links.values()))
+    diagram = Diagram(nodes, list(links.values()), groups_of(model, nodes))
     place(diagram)
     return diagram
+
+
+def groups_of(model, nodes):
+    """The buses, links and chains of the car, each with the nodes it touches.
+    A chain touches the box a node is in, else the node itself. What is not a
+    node of the diagram is left out."""
+    known = {node.name for node in nodes}
+    groups = []
+    for kind, entries in (("bus", model.car.buses), ("link", model.car.links)):
+        for name, entry in entries.items():
+            members = [end for end in (entry.get("ends") or []) if end in known]
+            groups.append(Group(name, kind, unique(members)))
+    for name, chain in model.car.chains.items():
+        members = [node.box or node.name for node in chain]
+        groups.append(Group(name, "chain", unique([m for m in members if m in known])))
+    return groups
+
+
+def unique(names):
+    """The names once each, in order."""
+    seen = []
+    for name in names:
+        if name not in seen:
+            seen.append(name)
+    return seen
 
 
 def end_node(model, end):
@@ -117,6 +154,9 @@ def place(diagram):
     boxes = [node for node in diagram.nodes if node.kind == "box"]
     devices = [node for node in diagram.nodes if node.kind == "device"]
     owner = device_owners(diagram, by_name)
+
+    for device in devices:
+        device.owner = owner.get(device.name)
 
     blocks = []
     for box in order_boxes(diagram, boxes):
