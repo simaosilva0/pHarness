@@ -234,7 +234,7 @@ function Car({ data }) {
           onNodeContextMenu={openMenu} onPaneClick={() => setMenu(null)} onMoveStart={() => setMenu(null)}
           onMoveEnd={(_, v) => { view.current = v; }}
           defaultViewport={saved.viewport || { x: 0, y: 0, zoom: 1 }}
-          snapToGrid snapGrid={[10, 10]} selectionOnDrag panOnDrag={[1, 2]} panActivationKeyCode="Space"
+          snapToGrid snapGrid={[10, 10]} panOnDrag panOnScroll selectionKeyCode="Shift" multiSelectionKeyCode="Shift"
           minZoom={0.1} maxZoom={4} deleteKeyCode={null} proOptions={{ hideAttribution: true }}
         >
           <Background gap={20} />
