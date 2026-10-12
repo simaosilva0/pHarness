@@ -169,7 +169,9 @@ body:has(#car:target, #car :target) nav.tabs a[href="#car"] {
 .tip { position: absolute; z-index: 2; pointer-events: none; white-space: pre; padding: 0.25rem 0.5rem;
        border: 1px solid var(--line); border-radius: 4px; background: var(--head); font-size: 0.85rem; }
 .car-cable { fill: none; stroke: var(--muted); stroke-linejoin: round; stroke-linecap: butt; opacity: 0.8; }
-.car-hit { fill: none; stroke: transparent; stroke-linejoin: round; pointer-events: stroke; }
+.car-hit { fill: none; stroke: transparent; stroke-linejoin: round; pointer-events: stroke; vector-effect: non-scaling-stroke; }
+.car-handle { fill: var(--link); stroke: var(--bg); stroke-width: 2; vector-effect: non-scaling-stroke; cursor: grab; }
+.car-handle.mid { fill: var(--bg); stroke: var(--link); }
 #car-svg.focus .car-cable { opacity: 0.12; }
 #car-svg.focus .car-cable.hot { opacity: 1; stroke: var(--link); }
 #car-svg.hide-cables .car-cable { opacity: 0; }
@@ -272,8 +274,8 @@ def render_car(diagram, anchors=None):
             '<button id="car-fit" title="Fit the whole car">Fit</button>'
             '<button id="car-zoom-in" title="Zoom in">+</button></div></div>'
             '<p class="muted hint">Click a box or device to open its pinout or cable. Drag on empty space to select, '
-            'then drag a selected box to move them all (shift adds or removes one). Drag a cable to move its '
-            'middle run, double-click it to put it back. Drag the view with the middle or right button, or hold '
+            'then drag a selected box to move them all (shift adds or removes one). Point at a cable for its handles: drag an end to '
+            'another side of its box or device, drag the middle one to make the cable bend through another point; cables never share a line; double-click a cable to put it back. Drag the view with the middle or right button, or hold '
             'Space or Alt. The wheel zooms.</p>'
             f'<script type="application/json" id="car-data">{data}</script>')
 

@@ -22,7 +22,8 @@ SCRIPT = r"""
   var options = { show: true, bundled: true, devices: true };
   var hidden = {};
   var selected = {};
-  var mids = {};   // where a cable's middle run was dragged to, by cable key
+  var vias = {};   // a point a cable was dragged through, by cable key: [x, y]
+  var ends = {};   // the side the user gave each end of a cable, by cable key: [first, second]
 
   function visible(node) {
     return !hidden[node.name] && (node.kind === "box" || options.devices);
@@ -40,48 +41,75 @@ SCRIPT = r"""
 
   // --- cables ---------------------------------------------------------------
 
-  // Whether a node other than the link's own stands in the band between them.
-  // Hidden nodes count too: a cable runs the same whatever the filter shows.
-  function blocked(a, b, horizontal) {
-    return data.nodes.some(function (n) {
-      if (n === a || n === b) return false;
-      if (horizontal) {
-        return n.x >= Math.min(a.x + a.w, b.x + b.w) && n.x + n.w <= Math.max(a.x, b.x)
-          && n.y < Math.max(a.y + a.h, b.y + b.h) && n.y + n.h > Math.min(a.y, b.y);
-      }
-      return n.y >= Math.min(a.y + a.h, b.y + b.h) && n.y + n.h <= Math.max(a.y, b.y)
-        && n.x < Math.max(a.x + a.w, b.x + b.w) && n.x + n.w > Math.min(a.x, b.x);
-    });
+  var DIRS = { left: [-1, 0], right: [1, 0], top: [0, -1], bottom: [0, 1] };
+
+  function clamp(value, lo, hi) {
+    return Math.max(lo, Math.min(hi, value));
   }
 
-  // Which sides a link uses: facing sides left and right when that way is
-  // clear, else facing sides top and bottom when that is, else both top sides
-  // (the cable goes over the top). Null when the nodes overlap both ways.
-  function sides(a, b) {
+  // The side each end of a link leaves by: the one the user chose, else the
+  // sides facing each other, across when there is a gap between the nodes
+  // sideways, along otherwise.
+  function chosen(link) {
+    var own = ends[link.key] || [];
+    var a = nodes[link.a], b = nodes[link.b];
     var gapX = Math.max(a.x - (b.x + b.w), b.x - (a.x + a.w));
     var gapY = Math.max(a.y - (b.y + b.h), b.y - (a.y + a.h));
-    if (gapX >= 0 && !blocked(a, b, true)) return a.x < b.x ? ["right", "left"] : ["left", "right"];
-    if (gapY >= 0 && !blocked(a, b, false)) return a.y < b.y ? ["bottom", "top"] : ["top", "bottom"];
-    if (gapX >= 0 || gapY >= 0) return ["top", "top"];
-    return null;
+    var auto;
+    if (gapX > 0 || gapY <= 0) auto = a.x + a.w / 2 < b.x + b.w / 2 ? ["right", "left"] : ["left", "right"];
+    else auto = a.y + a.h / 2 < b.y + b.h / 2 ? ["bottom", "top"] : ["top", "bottom"];
+    return [own[0] || auto[0], own[1] || auto[1]];
   }
 
-  // Spread the links on one side of a node over distinct cells, ordered by
-  // where they go, so two cables do not share a port.
+  function capacity(node, side) {
+    return (side === "left" || side === "right" ? node.h : node.w) - 1;
+  }
+
+  // Spread the links on each side of a node over distinct cells, ordered by
+  // where they go, so two cables do not share a port. A side with more links
+  // than cells gives the ones that look least that way to a side with room;
+  // ends the user placed stay where they are.
   function ports(links) {
     var onSide = {};
-    links.forEach(function (link, index) {
+    var add = function (port) {
+      var key = port.node.name + "|" + port.side;
+      (onSide[key] = onSide[key] || []).push(port);
+    };
+    links.forEach(function (link) {
       var a = nodes[link.a], b = nodes[link.b];
-      var s = sides(a, b);
+      var s = chosen(link);
+      var own = ends[link.key] || [];
       link.sides = s;
-      if (!s) return;
-      [[a, b, s[0], 0], [b, a, s[1], 1]].forEach(function (end) {
-        var key = end[0].name + "|" + end[2];
-        (onSide[key] = onSide[key] || []).push({ link: link, node: end[0], other: end[1], side: end[2], end: end[3] });
-      });
+      add({ link: link, node: a, other: b, side: s[0], end: 0, fixed: !!own[0] });
+      add({ link: link, node: b, other: a, side: s[1], end: 1, fixed: !!own[1] });
     });
+    var look = function (port) {
+      var d = DIRS[port.side], n = port.node, o = port.other;
+      return d[0] * (o.x + o.w / 2 - n.x - n.w / 2) + d[1] * (o.y + o.h / 2 - n.y - n.h / 2);
+    };
+    var order = { right: ["top", "bottom", "left"], left: ["top", "bottom", "right"],
+                  top: ["left", "right", "bottom"], bottom: ["left", "right", "top"] };
+    for (var pass = 0; pass < 3; pass++) {
+      Object.keys(onSide).forEach(function (key) {
+        var list = onSide[key];
+        while (list.length > capacity(list[0].node, list[0].side)) {
+          var loose = list.filter(function (port) { return !port.fixed; });
+          if (!loose.length) break;
+          var port = loose.reduce(function (worst, next) { return look(next) < look(worst) ? next : worst; });
+          var home = order[port.side].filter(function (side) {
+            return (onSide[port.node.name + "|" + side] || []).length < capacity(port.node, side);
+          })[0];
+          if (!home) break;
+          list.splice(list.indexOf(port), 1);
+          port.side = home;
+          port.link.sides[port.end] = home;
+          add(port);
+        }
+      });
+    }
     Object.keys(onSide).forEach(function (key) {
       var list = onSide[key];
+      if (!list.length) return;
       var horizontal = list[0].side === "left" || list[0].side === "right";
       list.sort(function (p, q) {
         var pc = horizontal ? p.other.y + p.other.h / 2 : p.other.x + p.other.w / 2;
@@ -99,42 +127,251 @@ SCRIPT = r"""
     });
   }
 
-  var overLanes = 0;
-
-  // The ends and the middle run of a cable: the polyline is the two ports
-  // joined by a run along `axis` at cell `mid`. The tool picks `mid`; a cable
-  // the user dragged keeps theirs.
-  function route(link) {
-    var s = link.sides;
-    link.base = null;
-    if (!s) return null;
-    var a = nodes[link.a], b = nodes[link.b];
-    var p, q, mid, axis;
-    if (s[0] === "top" && s[1] === "top") {
-      p = [link.at0, a.y];
-      q = [link.at1, b.y];
-      mid = Math.min(a.y, b.y) - 2 - (overLanes++ % 5);
-      axis = "y";
-    } else if (s[0] === "right" || s[0] === "left") {
-      p = [s[0] === "right" ? a.x + a.w : a.x, link.at0];
-      q = [s[1] === "left" ? b.x : b.x + b.w, link.at1];
-      mid = Math.round((p[0] + q[0]) / 2);
-      axis = "x";
-    } else {
-      p = [link.at0, s[0] === "bottom" ? a.y + a.h : a.y];
-      q = [link.at1, s[1] === "top" ? b.y : b.y + b.h];
-      mid = Math.round((p[1] + q[1]) / 2);
-      axis = "y";
-    }
-    link.base = { p: p, q: q, axis: axis };
-    link.mid = mids[link.key] !== undefined ? mids[link.key] : mid;
-    return outline(link);
+  function portAt(node, side, at) {
+    if (side === "left") return [node.x, at];
+    if (side === "right") return [node.x + node.w, at];
+    if (side === "top") return [at, node.y];
+    return [at, node.y + node.h];
   }
 
-  function outline(link) {
-    var base = link.base, mid = link.mid;
-    if (base.axis === "x") return [base.p, [mid, base.p[1]], [mid, base.q[1]], base.q];
-    return [base.p, [base.p[0], mid], [base.q[0], mid], base.q];
+  // --- finding a way for each cable ---------------------------------------------
+  //
+  // A cable runs on the grid lines from the side of one node to the side of
+  // another, around every node, bending as little as it can. Cables may cross
+  // but never share a line: each takes lines the cables before it did not.
+  // The cables a user has placed are routed first, then the short ones.
+
+  var OFF = 1000, SPAN = 4000;   // grid points are numbered (x + OFF) * SPAN + (y + OFF)
+  var STEP = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+  var TURN = 4, CROSS = 3;
+  var solid = {};        // grid points inside a node
+  var used = {};         // unit pieces of line taken: "h|x|y" from (x, y) to (x + 1, y), "v|x|y" down
+  var through = {};      // grid points a cable passes along: 1 across, 2 down
+  var reserved = {};     // the grid point just outside each cable's ends, kept for that cable
+  var routing = null;    // the key of the cable being routed
+
+  function number(x, y) { return (x + OFF) * SPAN + (y + OFF); }
+
+  // Where a link's two ends are, a cell out of their sides.
+  function endsOf(link) {
+    var s = link.sides;
+    var p = portAt(nodes[link.a], s[0], link.at0), q = portAt(nodes[link.b], s[1], link.at1);
+    var d0 = DIRS[s[0]], d1 = DIRS[s[1]];
+    return { p: p, q: q, d0: d0, d1: d1, p1: [p[0] + d0[0], p[1] + d0[1]], q1: [q[0] + d1[0], q[1] + d1[1]] };
+  }
+
+  function resetBoard(list) {
+    solid = {};
+    used = {};
+    through = {};
+    reserved = {};
+    list.forEach(function (link) {
+      var e = endsOf(link);
+      reserved[number(e.p1[0], e.p1[1])] = link.key;
+      reserved[number(e.q1[0], e.q1[1])] = link.key;
+    });
+    data.nodes.forEach(function (n) {
+      for (var x = n.x; x <= n.x + n.w; x++) {
+        for (var y = n.y; y <= n.y + n.h; y++) solid[number(x, y)] = true;
+      }
+    });
+  }
+
+  // The unit pieces of line a path lies on.
+  function pieces(points, take) {
+    for (var i = 1; i < points.length; i++) {
+      var a = points[i - 1], b = points[i];
+      if (a[0] === b[0]) {
+        for (var y = Math.min(a[1], b[1]); y < Math.max(a[1], b[1]); y++) take("v|" + a[0] + "|" + y);
+      } else {
+        for (var x = Math.min(a[0], b[0]); x < Math.max(a[0], b[0]); x++) take("h|" + x + "|" + a[1]);
+      }
+    }
+  }
+
+  // A routed cable's lines are taken, and the grid points it passes along are
+  // noted, so later cables keep off them and cross it at a cost.
+  function claimLine(points) {
+    pieces(points, function (key) { used[key] = true; });
+    for (var i = 1; i < points.length; i++) {
+      var a = points[i - 1], b = points[i];
+      var across = a[1] === b[1];
+      for (var x = Math.min(a[0], b[0]); x <= Math.max(a[0], b[0]); x++) {
+        for (var y = Math.min(a[1], b[1]); y <= Math.max(a[1], b[1]); y++) {
+          through[number(x, y)] = (through[number(x, y)] || 0) | (across ? 1 : 2);
+        }
+      }
+    }
+  }
+
+  function pieceKey(x, y, d) {
+    // the unit piece of line from (x, y) one step in direction d
+    if (d === 0) return "h|" + x + "|" + y;
+    if (d === 2) return "h|" + (x - 1) + "|" + y;
+    if (d === 1) return "v|" + x + "|" + y;
+    return "v|" + x + "|" + (y - 1);
+  }
+
+  // A binary heap of [cost, state].
+  function push(heap, item) {
+    heap.push(item);
+    var i = heap.length - 1;
+    while (i > 0) {
+      var parent = (i - 1) >> 1;
+      if (heap[parent][0] <= heap[i][0]) break;
+      var swap = heap[parent]; heap[parent] = heap[i]; heap[i] = swap;
+      i = parent;
+    }
+  }
+  function pop(heap) {
+    var top = heap[0], last = heap.pop();
+    if (heap.length) {
+      heap[0] = last;
+      var i = 0;
+      for (;;) {
+        var l = 2 * i + 1, r = l + 1, m = i;
+        if (l < heap.length && heap[l][0] < heap[m][0]) m = l;
+        if (r < heap.length && heap[r][0] < heap[m][0]) m = r;
+        if (m === i) break;
+        var swap = heap[m]; heap[m] = heap[i]; heap[i] = swap;
+        i = m;
+      }
+    }
+    return top;
+  }
+
+  // The cheapest way from `from` (leaving in direction `dir`) to `to` inside
+  // `box` ([x0, y0, x1, y1]), or null. `extra` are pieces of line taken by the
+  // cable's own earlier part.
+  function search(from, dir, to, box, extra) {
+    var w = box[2] - box[0] + 1, h = box[3] - box[1] + 1;
+    var cost = new Float32Array(w * h * 4).fill(Infinity);
+    var before = new Int32Array(w * h * 4).fill(-1);
+    var id = function (x, y, d) { return (((x - box[0]) * h) + (y - box[1])) * 4 + d; };
+    var heap = [];
+    var start = id(from[0], from[1], dir);
+    cost[start] = 0;
+    push(heap, [Math.abs(from[0] - to[0]) + Math.abs(from[1] - to[1]), start]);
+    while (heap.length) {
+      var state = pop(heap)[1];
+      var d = state % 4, cell = (state - d) / 4, y = cell % h + box[1], x = (cell - (cell % h)) / h + box[0];
+      if (x === to[0] && y === to[1]) {
+        var found = [[x, y]], at = state;
+        while (before[at] >= 0) {
+          at = before[at];
+          var pd = at % 4, pc = (at - pd) / 4;
+          found.push([(pc - (pc % h)) / h + box[0], pc % h + box[1]]);
+        }
+        return found.reverse();
+      }
+      for (var nd = 0; nd < 4; nd++) {
+        if (nd === (d + 2) % 4) continue;
+        var nx = x + STEP[nd][0], ny = y + STEP[nd][1];
+        if (nx < box[0] || nx > box[2] || ny < box[1] || ny > box[3]) continue;
+        var goal = nx === to[0] && ny === to[1];
+        if (solid[number(nx, ny)] && !goal) continue;
+        var owner = reserved[number(nx, ny)];
+        if (owner !== undefined && owner !== routing && !goal) continue;   // another cable's end
+        var key = pieceKey(x, y, nd);
+        if (used[key] || extra[key]) continue;
+        var more = 1 + (nd !== d ? TURN : 0);
+        var crossing = through[number(nx, ny)];
+        if (crossing && !goal && (crossing & (nd % 2 === 0 ? 2 : 1)) && !(crossing & (nd % 2 === 0 ? 1 : 2))) more += CROSS;
+        var next = id(nx, ny, nd);
+        var total = cost[id(x, y, d)] + more;
+        if (total < cost[next]) {
+          cost[next] = total;
+          before[next] = state;
+          push(heap, [total + Math.abs(nx - to[0]) + Math.abs(ny - to[1]), next]);
+        }
+      }
+    }
+    return null;
+  }
+
+  // The grid points a path turns at, between its ends, without the ones in a
+  // straight line.
+  function corners(points) {
+    var out = [points[0]];
+    for (var i = 1; i < points.length - 1; i++) {
+      var a = points[i - 1], b = points[i], c = points[i + 1];
+      if ((b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]) !== 0) out.push(b);
+    }
+    out.push(points[points.length - 1]);
+    return out;
+  }
+
+  // Around the two ends, a box to search in, wider each time the way is not found.
+  function reach(list, margin) {
+    var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    list.forEach(function (pt) {
+      x0 = Math.min(x0, pt[0]); y0 = Math.min(y0, pt[1]); x1 = Math.max(x1, pt[0]); y1 = Math.max(y1, pt[1]);
+    });
+    return [x0 - margin, y0 - margin, x1 + margin, y1 + margin];
+  }
+
+  function wayBetween(from, dir, to, via) {
+    var legs = via ? [[from, dir, via], [via, null, to]] : [[from, dir, to]];
+    var whole = null, extra = {};
+    for (var m = 0, margins = [8, 24, 80]; m < margins.length; m++) {
+      whole = [];
+      extra = {};
+      var ok = true;
+      for (var i = 0; i < legs.length; i++) {
+        var leg = legs[i];
+        var started = leg[1];
+        if (started === null) {   // after a waypoint: any way out of it
+          var last = whole[whole.length - 1], before = whole[whole.length - 2];
+          started = before ? (last[0] > before[0] ? 0 : last[0] < before[0] ? 2 : last[1] > before[1] ? 1 : 3) : 0;
+        }
+        var found = search(leg[0], started, leg[2], reach([from, to, via || from], margins[m]), extra);
+        if (!found) { ok = false; break; }
+        pieces(found, function (key) { extra[key] = true; });
+        whole = whole.concat(whole.length ? found.slice(1) : found);
+      }
+      if (ok) return whole;
+    }
+    return null;
+  }
+
+  // A link's route and its handles. The ends stand a cell out of their sides;
+  // between them the way is found on the grid.
+  function route(link) {
+    var e = endsOf(link);
+    var p = e.p, q = e.q, d0 = e.d0, p1 = e.p1, q1 = e.q1;
+    routing = link.key;
+    var dir = STEP.findIndex(function (st) { return st[0] === d0[0] && st[1] === d0[1]; });
+    var via = vias[link.key];
+    if (via && solid[number(via[0], via[1])]) via = null;   // a node has taken its place
+    var way = wayBetween(p1, dir, q1, via);
+    var inner;
+    if (way) {
+      inner = way;
+    } else {   // no way round: straight through, as a last resort
+      inner = [p1, d0[0] === 0 ? [q1[0], p1[1]] : [p1[0], q1[1]], q1];
+    }
+    var points = corners([p].concat(inner, [q]));
+    claimLine(points);
+    link.points = points;
+    link.base = { handles: { ends: [p, q], mid: middle(points, via) } };
+    return points;
+  }
+
+  // The point to grab in the middle: where the user put it, else the grid point
+  // halfway along a cable that bends; none on a straight cable.
+  function middle(points, via) {
+    if (points.length <= 2) return null;
+    if (via) return via;
+    var total = 0, i;
+    for (i = 1; i < points.length; i++) total += Math.abs(points[i][0] - points[i - 1][0]) + Math.abs(points[i][1] - points[i - 1][1]);
+    var left = Math.floor(total / 2);
+    for (i = 1; i < points.length; i++) {
+      var a = points[i - 1], b = points[i];
+      var length = Math.abs(b[0] - a[0]) + Math.abs(b[1] - a[1]);
+      if (left <= length) return [a[0] + Math.sign(b[0] - a[0]) * left, a[1] + Math.sign(b[1] - a[1]) * left];
+      left -= length;
+    }
+    return points[points.length - 1];
   }
 
   function path(points) {
@@ -168,7 +405,7 @@ SCRIPT = r"""
     return list;
   }
 
-  var cablesLayer, nodesLayer;
+  var cablesLayer, nodesLayer, handlesLayer;
   var groups = {};
   var current = null;   // what is pointed at: a node, a cable's item or null
 
@@ -180,6 +417,8 @@ SCRIPT = r"""
     grid.setAttribute("class", "car-grid");
     cablesLayer = make("g", { "class": "car-cables" }, world);
     nodesLayer = make("g", {}, world);
+    handlesLayer = make("g", { "class": "car-handles", display: "none" }, world);
+    makeHandles();
 
     data.nodes.forEach(function (node) {
       var group = make("g", { transform: place(node) }, nodesLayer);
@@ -211,69 +450,177 @@ SCRIPT = r"""
     while (cablesLayer.firstChild) cablesLayer.removeChild(cablesLayer.firstChild);
     var list = items();
     ports(list);
-    overLanes = 0;
+    resetBoard(list);
     drawn = [];
-    list.forEach(function (item) {
+    // cables the user placed are routed first, so they get the lines they
+    // chose; then the short ones, which have the least room to spare
+    var length = function (item) {
+      var a = nodes[item.a], b = nodes[item.b];
+      return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+    };
+    var mine = function (item) { return vias[item.key] !== undefined || ends[item.key] ? 1 : 0; };
+    list.slice().sort(function (x, y) { return mine(y) - mine(x) || length(x) - length(y); }).forEach(function (item) {
       var points = route(item);
-      if (!points || !visible(nodes[item.a]) || !visible(nodes[item.b])) return;
+      if (!visible(nodes[item.a]) || !visible(nodes[item.b])) return;
       var line = make("polyline", { points: path(points), "stroke-width": thickness(item.wires) }, cablesLayer);
       line.setAttribute("class", "car-cable");
       // a wider line, drawn on top and invisible, so a thin cable is easy to point at
-      var hit = make("polyline", { points: path(points), "stroke-width": Math.max(thickness(item.wires), 12) }, cablesLayer);
+      var hit = make("polyline", { points: path(points), "stroke-width": 14 }, cablesLayer);
       hit.setAttribute("class", "car-hit");
-      hit.style.cursor = item.base.axis === "x" ? "ew-resize" : "ns-resize";
-      cableEvents(item, line, hit);
+      if (item.href) hit.style.cursor = "pointer";
+      cableEvents(item, hit);
       drawn.push({ item: item, line: line });
     });
     svg.classList.toggle("hide-cables", !options.show);
-    if (current && !current.kind) current = null;   // a cable of the old drawing is gone
+    if (current && !current.kind) {   // the old drawing's cable: find its twin
+      current = (drawn.filter(function (entry) { return entry.item.key === current.key; })[0] || {}).item || null;
+    }
     focus(current);
+    placeHandles();
   }
 
-  // Pointing at a cable names it; dragging it moves its middle run, along the
-  // grid, with its ends where they are; a click goes to its cable page; a
-  // double click puts it back.
-  function cableEvents(item, line, hit) {
-    var drag = null, waiting = null;
-    hit.addEventListener("pointerenter", function (event) { focus(item); tip(item, event); });
-    hit.addEventListener("pointermove", function (event) {
-      if (!drag || drag.id !== event.pointerId) { tip(item, event); return; }
-      if (!drag.moved && Math.hypot(event.clientX - drag.sx, event.clientY - drag.sy) < 4) return;
-      drag.moved = true;
-      tip(null);
-      var at = local(event);
-      var mid = Math.round(((item.base.axis === "x" ? at[0] - view.x : at[1] - view.y) / view.k) / G);
-      if (mid === item.mid) return;
-      item.mid = mids[item.key] = mid;
-      var points = path(outline(item));
-      line.setAttribute("points", points);
-      hit.setAttribute("points", points);
+  // Pointing at a cable names it and shows its handles; a click goes to its
+  // cable page; a double click puts it back where the tool had it.
+  function cableEvents(item, hit) {
+    var waiting = null;
+    hit.addEventListener("pointerenter", function (event) {
+      focus(item);
+      tip(item, event);
+      showHandles(item);
     });
-    hit.addEventListener("pointerleave", function () { focus(null); tip(null); });
+    hit.addEventListener("pointermove", function (event) { tip(item, event); });
+    hit.addEventListener("pointerleave", function () { focus(null); tip(null); hideSoon(); });
     hit.addEventListener("pointerdown", function (event) {
       if (event.button !== 0 || panKey(event)) return;
-      event.stopPropagation();
-      hit.setPointerCapture(event.pointerId);
-      drag = { id: event.pointerId, sx: event.clientX, sy: event.clientY, moved: false };
+      event.stopPropagation();   // not the start of a selection
     });
-    function drop(event) {
-      if (!drag || drag.id !== event.pointerId) return;
-      var moved = drag.moved;
-      drag = null;
-      if (moved) { save(); return; }
-      if (event.type === "pointerup" && item.href) {
-        clearTimeout(waiting);
-        waiting = setTimeout(function () { jump(item.href); }, 250);   // unless it is a double click
-      }
-    }
-    hit.addEventListener("pointerup", drop);
-    hit.addEventListener("pointercancel", drop);
+    hit.addEventListener("click", function () {
+      clearTimeout(waiting);
+      if (item.href) waiting = setTimeout(function () { jump(item.href); }, 250);   // unless it is a double click
+    });
     hit.addEventListener("dblclick", function () {
       clearTimeout(waiting);
-      delete mids[item.key];
+      delete vias[item.key];
+      delete ends[item.key];
       drawCables();
       save();
     });
+  }
+
+  // --- the handles of a cable -------------------------------------------------
+
+  // The cable pointed at has a handle on each end, which snaps to a side of its
+  // box or device, and one on the middle run (when it has one), which slides
+  // along the grid.
+  var activeKey = null, hideTimer = null, grabbed = null;
+  var handles = [];
+
+  function activeItem() {
+    var found = drawn.filter(function (entry) { return entry.item.key === activeKey; })[0];
+    return found ? found.item : null;
+  }
+
+  function showHandles(item) {
+    clearTimeout(hideTimer);
+    activeKey = item.key;
+    placeHandles();
+  }
+
+  function hideSoon() {
+    if (grabbed) return;
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(hideNow, 350);
+  }
+
+  function hideNow() {
+    clearTimeout(hideTimer);
+    activeKey = null;
+    placeHandles();
+  }
+
+  function placeHandles() {
+    var item = options.show ? activeItem() : null;
+    handlesLayer.setAttribute("display", item ? "" : "none");
+    if (!item) return;
+    var spots = [item.base.handles.ends[0], item.base.handles.ends[1], item.base.handles.mid];
+    handles.forEach(function (el, i) {
+      el.setAttribute("display", spots[i] ? "" : "none");
+      if (!spots[i]) return;
+      el.setAttribute("cx", spots[i][0] * G);
+      el.setAttribute("cy", spots[i][1] * G);
+      el.setAttribute("r", 7 / view.k);
+    });
+    handles[2].style.cursor = "move";
+  }
+
+  // The side of a node the point is nearest, by direction from its centre.
+  function nearestSide(node, x, y) {
+    var nx = (x - node.x - node.w / 2) / (node.w / 2), ny = (y - node.y - node.h / 2) / (node.h / 2);
+    if (Math.abs(nx) > Math.abs(ny)) return nx < 0 ? "left" : "right";
+    return ny < 0 ? "top" : "bottom";
+  }
+
+  function moveHandle(index, event) {
+    var item = activeItem();
+    if (!item) return;
+    var at = local(event);
+    var x = (at[0] - view.x) / view.k / G, y = (at[1] - view.y) / view.k / G;
+    if (index === 2) {
+      var cell = [Math.round(x), Math.round(y)];
+      if (solid[number(cell[0], cell[1])]) return;   // not inside a node
+      var held = vias[item.key];
+      if (held && held[0] === cell[0] && held[1] === cell[1]) return;
+      vias[item.key] = cell;
+    } else {
+      var side = nearestSide(nodes[index === 0 ? item.a : item.b], x, y);
+      if (side === item.sides[index]) return;
+      ends[item.key] = ends[item.key] || [null, null];
+      ends[item.key][index] = side;
+      delete vias[item.key];   // the old waypoint belonged to the old way round
+    }
+    drawCables();
+  }
+
+  function makeHandles() {
+    for (var index = 0; index < 3; index++) {
+      (function (index) {
+        var el = make("circle", { "class": "car-handle" + (index === 2 ? " mid" : ""), display: "none" }, handlesLayer);
+        el.addEventListener("pointerenter", function () { clearTimeout(hideTimer); });
+        el.addEventListener("pointerleave", hideSoon);
+        el.addEventListener("pointerdown", function (event) {
+          if (event.button !== 0 || panKey(event)) return;
+          event.stopPropagation();
+          el.setPointerCapture(event.pointerId);
+          grabbed = { id: event.pointerId };
+          tip(null);
+        });
+        el.addEventListener("pointermove", function (event) {
+          if (grabbed && grabbed.id === event.pointerId) moveHandle(index, event);
+        });
+        function drop(event) {
+          if (!grabbed || grabbed.id !== event.pointerId) return;
+          grabbed = null;
+          save();
+          hideSoon();
+        }
+        el.addEventListener("pointerup", drop);
+        el.addEventListener("pointercancel", drop);
+        // a double click puts back what the handle changed
+        el.addEventListener("dblclick", function () {
+          var item = activeItem();
+          if (!item) return;
+          if (index === 2) {
+            delete vias[item.key];
+          } else if (ends[item.key]) {
+            ends[item.key][index] = null;
+            delete vias[item.key];
+          }
+          drawCables();
+          save();
+        });
+        handles.push(el);
+      })(index);
+    }
   }
 
   function jump(href) {
@@ -427,8 +774,13 @@ SCRIPT = r"""
         options.bundled = saved.options.bundled !== false;
         options.devices = saved.options.devices !== false;
       }
-      Object.keys(saved.mids || {}).forEach(function (key) {
-        if (whole(saved.mids[key])) mids[key] = saved.mids[key];
+      Object.keys(saved.ends || {}).forEach(function (key) {
+        var pair = saved.ends[key];
+        if (Array.isArray(pair) && pair.length === 2 && pair.every(function (side) { return side === null || DIRS[side]; })) ends[key] = pair;
+      });
+      Object.keys(saved.vias || {}).forEach(function (key) {
+        var at = saved.vias[key];
+        if (Array.isArray(at) && at.length === 2 && whole(at[0]) && whole(at[1])) vias[key] = at;
       });
       (saved.hidden || []).forEach(function (name) { if (nodes[name]) hidden[name] = true; });
       var v = saved.view;
@@ -445,7 +797,7 @@ SCRIPT = r"""
       data.nodes.forEach(function (node) {
         if (node.x !== node.dx || node.y !== node.dy) moved[node.name] = [node.x, node.y];
       });
-      localStorage.setItem(storeKey, JSON.stringify({ nodes: moved, view: view, options: options, hidden: Object.keys(hidden), mids: mids }));
+      localStorage.setItem(storeKey, JSON.stringify({ nodes: moved, view: view, options: options, hidden: Object.keys(hidden), vias: vias, ends: ends }));
     } catch (e) { /* blocked or full: nothing is kept */ }
   }
 
@@ -463,6 +815,7 @@ SCRIPT = r"""
     input.addEventListener("change", function () {
       options[name] = input.checked;
       tip(null);
+      hideNow();
       drawCables();
       save();
     });
@@ -636,13 +989,13 @@ SCRIPT = r"""
     }
     list.forEach(function (n) { grow(n.x, n.y); grow(n.x + n.w, n.y + n.h); });
     var lines = options.show ? drawn : [];
-    lines.forEach(function (entry) { outline(entry.item).forEach(function (pt) { grow(pt[0], pt[1]); }); });
+    lines.forEach(function (entry) { entry.item.points.forEach(function (pt) { grow(pt[0], pt[1]); }); });
     var x = (minX - 2) * G, y = (minY - 2) * G, w = (maxX - minX + 4) * G, h = (maxY - minY + 4) * G;
     var out = ['<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" viewBox="' + x + " " + y + " " + w + " " + h +
                '" font-family="system-ui, sans-serif">',
                '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" fill="#ffffff"/>'];
     lines.forEach(function (entry) {
-      out.push('<polyline points="' + path(outline(entry.item)) + '" fill="none" stroke="#6a6f78" stroke-width="' +
+      out.push('<polyline points="' + path(entry.item.points) + '" fill="none" stroke="#6a6f78" stroke-width="' +
                thickness(entry.item.wires) + '" stroke-linejoin="round"/>');
     });
     list.forEach(function (n) {
@@ -705,7 +1058,8 @@ SCRIPT = r"""
       node.y = node.dy;
       groups[node.name].setAttribute("transform", place(node));
     });
-    mids = {};
+    vias = {};
+    ends = {};
     drawCables();
     fit();
     save();
@@ -715,6 +1069,7 @@ SCRIPT = r"""
 
   function apply(quiet) {
     world.setAttribute("transform", "translate(" + view.x + "," + view.y + ") scale(" + view.k + ")");
+    handles.forEach(function (el) { el.setAttribute("r", 7 / view.k); });
     if (!quiet) saveSoon();
   }
 
