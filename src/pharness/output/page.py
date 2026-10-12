@@ -116,10 +116,20 @@ body:has(#car:target, #car :target) { max-width: none; }
 body:has(#car:target, #car :target) nav.tabs a[href="#car"] {
   color: var(--fg); background: var(--head); border-color: var(--line); font-weight: 600;
 }
-.stage { position: relative; height: calc(100vh - 12rem); min-height: 24rem; margin-top: 1rem;
+.stage { position: relative; height: calc(100vh - 16rem); min-height: 24rem; margin-top: 0.6rem;
          border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
-#car-svg { width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; background: var(--bg); }
+#car-svg { width: 100%; height: 100%; display: block; touch-action: none; cursor: default; background: var(--bg); }
+#car-svg.pannable { cursor: grab; }
 #car-svg.grabbing { cursor: grabbing; }
+.filter { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; margin-top: 1rem; }
+.filter button, .filter select { font: inherit; padding: 0.1rem 0.6rem; border: 1px solid var(--line);
+                                 border-radius: 4px; background: var(--bg); color: var(--fg); cursor: pointer; }
+.filter .chip { background: var(--head); font-weight: 600; }
+.filter .chip.off { background: var(--bg); color: var(--muted); font-weight: 400; text-decoration: line-through; }
+.filter label { margin: 0 0.4rem; user-select: none; cursor: pointer; }
+.hint { margin: 0.4rem 0 0; font-size: 0.85rem; }
+.car-marquee { fill: var(--link); fill-opacity: 0.12; stroke: var(--link); stroke-dasharray: 4 3; pointer-events: none; }
+.car-node.selected rect { stroke: var(--link); stroke-width: 3; }
 .zoom { position: absolute; right: 0.6rem; bottom: 0.6rem; display: flex; gap: 0.25rem; }
 .zoom button { font: inherit; padding: 0.2rem 0.6rem; border: 1px solid var(--line); border-radius: 4px;
                background: var(--head); color: var(--fg); cursor: pointer; }
@@ -212,7 +222,8 @@ def render_car(diagram):
     the script draws. The data is JSON with `<` escaped, so no value can end
     its tag."""
     data = json.dumps(diagram.as_data()).replace("<", "\\u003c")
-    return ('<div class="stage">'
+    return ('<div id="car-filter" class="filter"></div>'
+            '<div class="stage">'
             '<svg id="car-svg" xmlns="http://www.w3.org/2000/svg">'
             f'<defs><pattern id="car-grid" width="{GRID}" height="{GRID}" patternUnits="userSpaceOnUse">'
             f'<path d="M {GRID} 0 L 0 0 0 {GRID}" fill="none" class="car-grid-line"/></pattern></defs>'
@@ -225,6 +236,9 @@ def render_car(diagram):
             '<div class="zoom"><button id="car-zoom-out" title="Zoom out">−</button>'
             '<button id="car-fit" title="Fit the whole car">Fit</button>'
             '<button id="car-zoom-in" title="Zoom in">+</button></div></div>'
+            '<p class="muted hint">Drag on empty space to select, then drag a selected box to move them all '
+            '(shift adds or removes one). Drag the view with the middle or right button, or hold Space or Alt. '
+            'The wheel zooms.</p>'
             f'<script type="application/json" id="car-data">{data}</script>')
 
 

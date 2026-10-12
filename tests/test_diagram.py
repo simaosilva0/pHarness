@@ -116,3 +116,8 @@ def test_a_device_knows_the_box_it_sits_beside(project):
     assert nodes["APPS1"].owner == "Nose"
     assert nodes["Nose"].owner is None
 
+
+def test_the_car_tab_has_a_filter_bar(project):
+    page = render_page(pinout_of(project)[1])
+    assert 'id="car-filter"' in page
+    assert '"groups": [' in page

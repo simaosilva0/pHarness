@@ -18,6 +18,18 @@ SCRIPT = r"""
   var view = { x: 0, y: 0, k: 1 };
   var MIN_K = 0.1, MAX_K = 4;
 
+  // What the filter hides, by node name, and the switches.
+  var options = { show: true, bundled: true, devices: true };
+  var hidden = {};
+  var selected = {};
+
+  function visible(node) {
+    return !hidden[node.name] && (node.kind === "box" || options.devices);
+  }
+  function shown() {
+    return data.nodes.filter(visible);
+  }
+
   function make(tag, attrs, parent) {
     var el = document.createElementNS(NS, tag);
     for (var name in attrs) el.setAttribute(name, attrs[name]);
@@ -29,7 +41,7 @@ SCRIPT = r"""
 
   // Whether a node other than the link's own stands in the band between them.
   function blocked(a, b, horizontal) {
-    return data.nodes.some(function (n) {
+    return shown().some(function (n) {
       if (n === a || n === b) return false;
       if (horizontal) {
         return n.x >= Math.min(a.x + a.w, b.x + b.w) && n.x + n.w <= Math.max(a.x, b.x)
@@ -118,15 +130,17 @@ SCRIPT = r"""
 
   // The cables as drawn: one per pair of nodes with its cables bundled, or one
   // for each cable.
-  var options = { show: true, bundled: true };
   var drawn = [];
 
   function items() {
-    if (options.bundled) return data.links.map(function (link) {
+    var links = data.links.filter(function (link) {
+      return visible(nodes[link.a]) && visible(nodes[link.b]);
+    });
+    if (options.bundled) return links.map(function (link) {
       return { a: link.a, b: link.b, wires: link.wires, cables: link.cables };
     });
     var list = [];
-    data.links.forEach(function (link) {
+    links.forEach(function (link) {
       link.cables.forEach(function (cable) {
         list.push({ a: link.a, b: link.b, wires: cable.wires, cables: [cable] });
       });
@@ -197,41 +211,77 @@ SCRIPT = r"""
     focus(current);
   }
 
-  // --- moving nodes ---------------------------------------------------------
+  // --- selecting and moving nodes -------------------------------------------
 
-  function overlaps(node, x, y) {
-    return data.nodes.some(function (other) {
-      return other !== node && x < other.x + other.w && other.x < x + node.w
-        && y < other.y + other.h && other.y < y + node.h;
+  function paintSelection() {
+    data.nodes.forEach(function (node) {
+      groups[node.name].classList.toggle("selected", !!selected[node.name]);
     });
   }
 
-  // A node follows the pointer one cell at a time and stays where it does not
-  // overlap another; the cables follow it.
+  function overlaps(moving, dx, dy) {
+    return shown().some(function (other) {
+      if (selected[other.name]) return false;
+      return moving.some(function (s) {
+        var x = s.x + dx, y = s.y + dy;
+        return x < other.x + other.w && other.x < x + s.node.w
+          && y < other.y + other.h && other.y < y + s.node.h;
+      });
+    });
+  }
+
+  // A node, or every selected node when it is one of them, follows the pointer
+  // one cell at a time and stays where it does not overlap another; the cables
+  // follow. A click selects it; shift adds to or takes from the selection.
   function dragging(node, group) {
     var drag = null;
     group.addEventListener("pointerdown", function (event) {
-      if (event.button) return;
+      if (event.button !== 0 || panKey(event)) return;   // the view takes these
       event.stopPropagation();
+      var was = !!selected[node.name];
+      if (event.shiftKey) {
+        if (was) delete selected[node.name]; else selected[node.name] = true;
+        paintSelection();
+        if (was) return;
+      } else if (!was) {
+        selected = {};
+        selected[node.name] = true;
+        paintSelection();
+      }
       group.setPointerCapture(event.pointerId);
-      drag = { id: event.pointerId, sx: event.clientX, sy: event.clientY, x: node.x, y: node.y };
+      drag = { id: event.pointerId, sx: event.clientX, sy: event.clientY, dx: 0, dy: 0, moved: false,
+               collapse: was && !event.shiftKey,
+               starts: Object.keys(selected).map(function (name) {
+                 return { node: nodes[name], x: nodes[name].x, y: nodes[name].y };
+               }) };
       group.classList.add("moving");
     });
     group.addEventListener("pointermove", function (event) {
       if (!drag || drag.id !== event.pointerId) return;
-      var x = drag.x + Math.round((event.clientX - drag.sx) / view.k / G);
-      var y = drag.y + Math.round((event.clientY - drag.sy) / view.k / G);
-      if ((x === node.x && y === node.y) || overlaps(node, x, y)) return;
-      node.x = x;
-      node.y = y;
-      group.setAttribute("transform", place(node));
+      var dx = Math.round((event.clientX - drag.sx) / view.k / G);
+      var dy = Math.round((event.clientY - drag.sy) / view.k / G);
+      if ((dx === drag.dx && dy === drag.dy) || overlaps(drag.starts, dx, dy)) return;
+      drag.dx = dx;
+      drag.dy = dy;
+      drag.moved = true;
+      drag.starts.forEach(function (s) {
+        s.node.x = s.x + dx;
+        s.node.y = s.y + dy;
+        groups[s.node.name].setAttribute("transform", place(s.node));
+      });
       drawCables();
     });
     function drop(event) {
       if (!drag || drag.id !== event.pointerId) return;
-      drag = null;
       group.classList.remove("moving");
-      save();
+      if (drag.moved) {
+        save();
+      } else if (drag.collapse) {
+        selected = {};
+        selected[node.name] = true;
+        paintSelection();
+      }
+      drag = null;
     }
     group.addEventListener("pointerup", drop);
     group.addEventListener("pointercancel", drop);
@@ -294,7 +344,9 @@ SCRIPT = r"""
       if (saved.options) {
         options.show = saved.options.show !== false;
         options.bundled = saved.options.bundled !== false;
+        options.devices = saved.options.devices !== false;
       }
+      (saved.hidden || []).forEach(function (name) { if (nodes[name]) hidden[name] = true; });
       var v = saved.view;
       if (v && isFinite(v.x) && isFinite(v.y) && isFinite(v.k) && v.k >= MIN_K && v.k <= MAX_K) {
         view = { x: v.x, y: v.y, k: v.k };
@@ -309,7 +361,7 @@ SCRIPT = r"""
       data.nodes.forEach(function (node) {
         if (node.x !== node.dx || node.y !== node.dy) moved[node.name] = [node.x, node.y];
       });
-      localStorage.setItem(storeKey, JSON.stringify({ nodes: moved, view: view, options: options }));
+      localStorage.setItem(storeKey, JSON.stringify({ nodes: moved, view: view, options: options, hidden: Object.keys(hidden) }));
     } catch (e) { /* blocked or full: nothing is kept */ }
   }
 
@@ -333,6 +385,105 @@ SCRIPT = r"""
   }
   bind("car-show", "show");
   bind("car-bundled", "bundled");
+
+  // --- the filter -----------------------------------------------------------
+
+  var bar = document.getElementById("car-filter");
+  var chips = {};
+
+  function element(tag, parent, text, attrs) {
+    var el = document.createElement(tag);
+    if (text) el.textContent = text;
+    for (var name in (attrs || {})) el.setAttribute(name, attrs[name]);
+    parent.appendChild(el);
+    return el;
+  }
+
+  function owned(box) {
+    return data.nodes.filter(function (n) { return n.owner === box; }).map(function (n) { return n.name; });
+  }
+
+  // Show exactly these nodes, then fit the view to them.
+  function only(names) {
+    hidden = {};
+    data.nodes.forEach(function (n) { if (names.indexOf(n.name) < 0) hidden[n.name] = true; });
+    refresh();
+    fit();
+    save();
+  }
+
+  function neighbours(box) {
+    var names = [box].concat(owned(box));
+    data.links.forEach(function (link) {
+      var other = link.a === box ? link.b : link.b === box ? link.a : null;
+      if (other && nodes[other].kind === "box") names.push(other);
+    });
+    return names;
+  }
+
+  function buildFilter() {
+    var boxes = data.nodes.filter(function (n) { return n.kind === "box"; });
+    element("button", bar, "All").addEventListener("click", function () { only(data.nodes.map(function (n) { return n.name; })); });
+    element("button", bar, "None").addEventListener("click", function () { only([]); });
+    boxes.forEach(function (box) {
+      var chip = element("button", bar, box.name, { "class": "chip", title: "Show or hide " + box.name + " and its devices" });
+      chip.addEventListener("click", function () {
+        var on = !!hidden[box.name];
+        [box.name].concat(owned(box.name)).forEach(function (name) {
+          if (on) delete hidden[name]; else hidden[name] = true;
+        });
+        refresh();
+        save();
+      });
+      chips[box.name] = chip;
+    });
+
+    var label = element("label", bar, " Devices");
+    var devices = element("input", label, "", { type: "checkbox" });
+    label.insertBefore(devices, label.firstChild);
+    devices.checked = options.devices;
+    devices.addEventListener("change", function () {
+      options.devices = devices.checked;
+      refresh();
+      save();
+    });
+
+    var focusOn = element("select", bar, "", { title: "Show one box and the boxes it is cabled to" });
+    element("option", focusOn, "Box and neighbours…", { value: "" });
+    boxes.forEach(function (box) { element("option", focusOn, box.name, { value: box.name }); });
+    focusOn.addEventListener("change", function () {
+      if (focusOn.value) only(neighbours(focusOn.value));
+      focusOn.value = "";
+    });
+
+    var group = element("select", bar, "", { title: "Show only what a bus, link or chain touches" });
+    element("option", group, "Bus, link or chain…", { value: "" });
+    [["bus", "Buses"], ["link", "Links"], ["chain", "Chains"]].forEach(function (kind) {
+      var found = data.groups.filter(function (g) { return g.kind === kind[0]; });
+      if (!found.length) return;
+      var section = element("optgroup", group, "", { label: kind[1] });
+      found.forEach(function (g) { element("option", section, g.name, { value: kind[0] + ":" + g.name }); });
+    });
+    group.addEventListener("change", function () {
+      var pick = data.groups.filter(function (g) { return group.value === g.kind + ":" + g.name; })[0];
+      if (pick) only(pick.members);
+      group.value = "";
+    });
+  }
+
+  // Everything that follows from the filter: what is shown, the chips, the cables.
+  function refresh() {
+    data.nodes.forEach(function (node) {
+      groups[node.name].style.display = visible(node) ? "" : "none";
+      if (!visible(node)) delete selected[node.name];
+    });
+    paintSelection();
+    Object.keys(chips).forEach(function (name) {
+      chips[name].classList.toggle("off", !!hidden[name]);
+    });
+    tip(null);
+    drawCables();
+  }
 
   document.getElementById("car-reset").addEventListener("click", function () {
     data.nodes.forEach(function (node) {
@@ -363,9 +514,11 @@ SCRIPT = r"""
 
   function fit(quiet) {
     var box = svg.getBoundingClientRect();
-    if (!box.width || !box.height || !data.nodes.length) return false;
+    if (!box.width || !box.height) return false;
     var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    data.nodes.forEach(function (n) {
+    var list = shown();
+    if (!list.length) return false;
+    list.forEach(function (n) {
       minX = Math.min(minX, n.x); minY = Math.min(minY, n.y);
       maxX = Math.max(maxX, n.x + n.w); maxY = Math.max(maxY, n.y + n.h);
     });
@@ -390,15 +543,76 @@ SCRIPT = r"""
     zoomAt(at[0], at[1], Math.exp(-event.deltaY * (event.deltaMode ? 0.05 : 0.0015)));
   }, { passive: false });
 
+  // The view is dragged with the middle or right button, with Alt or Space
+  // held, or with a finger; the left button on empty space selects.
+  var spaceDown = false, overSvg = false;
+  function panKey(event) {
+    return event.button === 1 || event.button === 2 || event.altKey || spaceDown;
+  }
+  svg.addEventListener("contextmenu", function (event) { event.preventDefault(); });
+  svg.addEventListener("pointerenter", function () { overSvg = true; });
+  svg.addEventListener("pointerleave", function () { overSvg = false; });
+  window.addEventListener("keydown", function (event) {
+    if (event.key === " " && overSvg) { spaceDown = true; svg.classList.add("pannable"); event.preventDefault(); }
+    if (event.key === "Escape") { selected = {}; paintSelection(); }
+  });
+  window.addEventListener("keyup", function (event) {
+    if (event.key === " ") { spaceDown = false; svg.classList.remove("pannable"); }
+  });
+
   var pointers = {};
   var pinch = null;
+  var marquee = null;
+  var box = make("rect", { "class": "car-marquee", display: "none" }, svg);
+
   svg.addEventListener("pointerdown", function (event) {
     svg.setPointerCapture(event.pointerId);
+    if (!Object.keys(pointers).length && event.button === 0 && !panKey(event) && event.pointerType !== "touch") {
+      var at = local(event);
+      marquee = { id: event.pointerId, x0: at[0], y0: at[1], x1: at[0], y1: at[1], add: event.shiftKey };
+      return;
+    }
     pointers[event.pointerId] = local(event);
     pinch = null;
     svg.classList.add("grabbing");
   });
+
+  function drawMarquee() {
+    var x = Math.min(marquee.x0, marquee.x1), y = Math.min(marquee.y0, marquee.y1);
+    box.setAttribute("x", x);
+    box.setAttribute("y", y);
+    box.setAttribute("width", Math.abs(marquee.x1 - marquee.x0));
+    box.setAttribute("height", Math.abs(marquee.y1 - marquee.y0));
+    box.setAttribute("display", "");
+  }
+
+  // Every shown node the dragged rectangle touches is selected; a click that
+  // did not drag clears the selection.
+  function finishMarquee() {
+    var m = marquee;
+    marquee = null;
+    box.setAttribute("display", "none");
+    if (Math.hypot(m.x1 - m.x0, m.y1 - m.y0) < 4) {
+      if (!m.add) selected = {};
+    } else {
+      var left = (Math.min(m.x0, m.x1) - view.x) / view.k / G, right = (Math.max(m.x0, m.x1) - view.x) / view.k / G;
+      var top = (Math.min(m.y0, m.y1) - view.y) / view.k / G, bottom = (Math.max(m.y0, m.y1) - view.y) / view.k / G;
+      if (!m.add) selected = {};
+      shown().forEach(function (n) {
+        if (n.x < right && left < n.x + n.w && n.y < bottom && top < n.y + n.h) selected[n.name] = true;
+      });
+    }
+    paintSelection();
+  }
+
   svg.addEventListener("pointermove", function (event) {
+    if (marquee && marquee.id === event.pointerId) {
+      var at = local(event);
+      marquee.x1 = at[0];
+      marquee.y1 = at[1];
+      drawMarquee();
+      return;
+    }
     if (!pointers[event.pointerId]) return;
     var before = pointers[event.pointerId];
     var now = local(event);
@@ -416,6 +630,7 @@ SCRIPT = r"""
     }
   });
   function release(event) {
+    if (marquee && marquee.id === event.pointerId) { finishMarquee(); return; }
     delete pointers[event.pointerId];
     pinch = null;
     if (!Object.keys(pointers).length) svg.classList.remove("grabbing");
@@ -432,7 +647,8 @@ SCRIPT = r"""
   document.getElementById("car-fit").addEventListener("click", fit);
 
   build();
-  drawCables();
+  buildFilter();
+  refresh();
   apply(true);
   // The tab is hidden until opened, so there is no size to fit to before that.
   var fitted = restored;
